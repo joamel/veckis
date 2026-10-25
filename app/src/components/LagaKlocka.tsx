@@ -140,7 +140,7 @@ export function LagaKlocka() {
                   return (
                     <View key={t.step} style={st.timerRad}>
                       <Ionicons name="timer-outline" size={18} color={tKlar ? ny.lime : ny.padYta} />
-                      <Text style={st.timerSteg}>{ärEgenTimer(t.step) ? str.detail.cookCustomTimer : str.detail.cookSheetStep(t.step + 1)}</Text>
+                      <Text style={st.timerSteg}>{ärEgenTimer(t.step) ? (t.name || str.detail.cookCustomTimer) : str.detail.cookSheetStep(t.step + 1)}</Text>
                       <Text style={[st.timerTid, tKlar && st.timerTidKlar, { width: text.length * 10 + 8 }]} numberOfLines={1}>{text}</Text>
                       <Pressable onPress={() => stoppaTimer(l, t.step)} hitSlop={8} accessibilityRole="button" accessibilityLabel={str.detail.cookStopTimerA11y(t.step + 1)}>
                         <Ionicons name="close-circle" size={22} color={ny.textDampad} />

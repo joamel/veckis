@@ -15,12 +15,17 @@
 import { useSyncExternalStore } from 'react';
 import { createDraftStore, type MedTid } from './drafts';
 
-export type CookTimer = { step: number; endsAt: number; notisId: string | null };
+/** name: bara egna timrar, valfritt ("Äggen"). */
+export type CookTimer = { step: number; endsAt: number; notisId: string | null; name?: string | null };
 
 /** Egna timrar i laga-läget (inte knutna till ett steg) får nycklar från och
  *  med det här talet, så att de kan ligga i samma tabell som stegens. */
 export const EGEN_TIMER_BAS = 1000;
 export const ärEgenTimer = (step: number) => step >= EGEN_TIMER_BAS;
+
+/** Fler timrar än så per rätt blir rörigt i laga-läget och i klockan. Gäller
+ *  egna timrar — stegens egna timrar går alltid att starta. */
+export const MAX_TIMRAR_PER_RÄTT = 3;
 
 export type CookSession = {
   recipeId: string;

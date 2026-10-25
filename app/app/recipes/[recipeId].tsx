@@ -30,7 +30,7 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import * as Notifications from 'expo-notifications';
 import { hittaMinuter, formateraNedräkning, formateraTidsetikett } from '../../src/lib/cookTimer';
-import { minimeraLagning, återupptaLagning, useLagningar, EGEN_TIMER_BAS, ärEgenTimer } from '../../src/lib/cookSessions';
+import { minimeraLagning, återupptaLagning, useLagningar, EGEN_TIMER_BAS, ärEgenTimer, MAX_TIMRAR_PER_RÄTT } from '../../src/lib/cookSessions';
 import { larmaTimer, LARM_FÖNSTER_MS } from '../../src/lib/timerLarm';
 import { useExperiment } from '../../src/lib/experiments';
 import { TidsSnurra, type Ankare } from '../../src/components/TidsSnurra';
@@ -231,6 +231,9 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
   // Egen timer (dev-läget): valfri tid, inte knuten till något steg.
   const [egenTimerÖppen, setEgenTimerÖppen] = useState(false);
   const [egenMinuter, setEgenMinuter] = useState(5);
+  const [egenNamn, setEgenNamn] = useState('');
+  // Namnen på de egna timrarna (nyckel → "Äggen"); stegens timrar har inga.
+  const [timerNamn, setTimerNamn] = useState<Map<number, string>>(new Map());
   // Arkens nederkant i laga-läget hålls fri från hemindikatorn.
   const insets = useSafeAreaInsets();
   const [heroLoading, setHeroLoading] = useState(false);
@@ -776,8 +779,9 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
 
   /** Startar nedräkning på steget och schemalägger notisen som faktiskt larmar.
    *  Utan notis vore timern bara en siffra man måste stå och titta på. */
-  const startaTimer = useCallback(async (steg: number, minuter: number) => {
+  const startaTimer = useCallback(async (steg: number, minuter: number, namn: string | null = null) => {
     setTimrar(prev => new Map(prev).set(steg, Date.now() + minuter * 60_000));
+    if (namn) setTimerNamn(prev => new Map(prev).set(steg, namn));
     try {
       const { status } = await Notifications.getPermissionsAsync();
       // Be aldrig om notis-tillstånd här: den som just tryckt på en timer står
@@ -786,7 +790,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
       if (status !== 'granted') return;
       const id = await Notifications.scheduleNotificationAsync({
         content: {
-          title: str.detail.cookTimerNotisTitel,
+          title: namn ? str.detail.cookCustomNotisTitel(namn) : str.detail.cookTimerNotisTitel,
           body: str.detail.cookTimerNotisText(recipe?.title ?? ''),
           sound: true,
         },
@@ -798,6 +802,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
 
   const stoppaTimer = useCallback((steg: number) => {
     setTimrar(prev => { const n = new Map(prev); n.delete(steg); return n; });
+    setTimerNamn(prev => { if (!prev.has(steg)) return prev; const n = new Map(prev); n.delete(steg); return n; });
     const id = timerNotisIds.current.get(steg);
     timerNotisIds.current.delete(steg);
     if (id) Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
@@ -811,6 +816,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
     setAvslutaFråga(false);
     setEgenTimerÖppen(false);
     setTimrar(new Map());
+    setTimerNamn(new Map());
     // Minimerad: timrarna och notiserna lever vidare i lagningen (cookSessions).
     if (minimeradRef.current) {
       minimeradRef.current = false;
@@ -828,6 +834,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
       setCookStep(s.step);
       setCookChecked(new Map(s.checked));
       setTimrar(new Map(s.timers.map(t => [t.step, t.endsAt])));
+      setTimerNamn(new Map(s.timers.filter(t => t.name).map(t => [t.step, t.name as string])));
       timerNotisIds.current = new Map(s.timers.filter(t => t.notisId).map(t => [t.step, t.notisId as string]));
     } else {
       setCookStep(0);
@@ -838,7 +845,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
   function startaEgenTimer() {
     const egna = [...timrar.keys()].filter(ärEgenTimer);
     const nyckel = egna.length ? Math.max(...egna) + 1 : EGEN_TIMER_BAS;
-    void startaTimer(nyckel, egenMinuter);
+    void startaTimer(nyckel, egenMinuter, egenNamn.trim() || null);
     setEgenTimerÖppen(false);
   }
 
@@ -849,7 +856,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
       title: recipe.title,
       step: cookStep,
       checked: [...cookChecked],
-      timers: [...timrar].map(([step, endsAt]) => ({ step, endsAt, notisId: timerNotisIds.current.get(step) ?? null })),
+      timers: [...timrar].map(([step, endsAt]) => ({ step, endsAt, notisId: timerNotisIds.current.get(step) ?? null, name: timerNamn.get(step) ?? null })),
       servings: scaledServings,
     });
     minimeradRef.current = true;
@@ -2230,7 +2237,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
                           >
                             <Ionicons name="timer-outline" size={14} color={kvar <= 0 ? '#fff' : c.primary} />
                             <Text style={[s.cookAndraTimerText, kvar <= 0 && s.cookTimerTextAktiv]}>
-                              {egen ? str.detail.cookCustomChip(tid) : str.detail.cookTimerAnnatSteg(i + 1, tid)}
+                              {egen ? str.detail.cookCustomChip(timerNamn.get(i) ?? null, tid) : str.detail.cookTimerAnnatSteg(i + 1, tid)}
                             </Text>
                             {egen && <Ionicons name="close" size={14} color={kvar <= 0 ? '#fff' : c.primary} />}
                           </Pressable>
@@ -2267,12 +2274,23 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
                       </Pressable>
                     );
                   })()}
-                  {lagaMinimera && (
-                    <Pressable style={s.cookTimer} onPress={() => setEgenTimerÖppen(true)} accessibilityRole="button" accessibilityLabel={str.detail.cookCustomTimerA11y}>
-                      <Ionicons name="add-circle-outline" size={20} color={c.primary} />
-                      <Text style={s.cookTimerText}>{str.detail.cookCustomTimer}</Text>
-                    </Pressable>
-                  )}
+                  {lagaMinimera && (() => {
+                    const fullt = timrar.size >= MAX_TIMRAR_PER_RÄTT;
+                    return (
+                      <Pressable
+                        style={[s.cookTimer, fullt && s.cookTimerFullt]}
+                        disabled={fullt}
+                        onPress={() => { setEgenNamn(''); setEgenTimerÖppen(true); }}
+                        accessibilityRole="button"
+                        accessibilityLabel={fullt ? str.detail.cookTimerMax(MAX_TIMRAR_PER_RÄTT) : str.detail.cookCustomTimerA11y}
+                      >
+                        <Ionicons name="add-circle-outline" size={20} color={fullt ? c.textFaint : c.primary} />
+                        <Text style={[s.cookTimerText, fullt && { color: c.textFaint }]}>
+                          {fullt ? str.detail.cookTimerMax(MAX_TIMRAR_PER_RÄTT) : str.detail.cookCustomTimer}
+                        </Text>
+                      </Pressable>
+                    );
+                  })()}
                   </View>
                 </ScrollView>
               </View>
@@ -2320,8 +2338,19 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
             )}
             {egenTimerÖppen && (
               <Pressable style={s.cookFrågaBakgrund} onPress={() => setEgenTimerÖppen(false)}>
-                <Pressable style={[s.cookFrågaArk, { paddingBottom: insets.bottom + 16 }]} onPress={() => {}}>
+                {/* Över tangentbordet medan namnet skrivs. */}
+                <Pressable style={[s.cookFrågaArk, { paddingBottom: tangentbordH > 0 ? tangentbordH + 16 : insets.bottom + 16 }]} onPress={() => {}}>
                   <Text style={s.cookFrågaTitel}>{str.detail.cookCustomTimer}</Text>
+                  <TextInput
+                    style={s.egenNamn}
+                    value={egenNamn}
+                    onChangeText={setEgenNamn}
+                    placeholder={str.detail.cookCustomNamePlaceholder}
+                    placeholderTextColor={ny.textDampad}
+                    maxLength={24}
+                    returnKeyType="done"
+                    autoCapitalize="sentences"
+                  />
                   <View style={s.egenRad}>
                     <Pressable style={s.egenStegKnapp} onPress={() => setEgenMinuter(m => Math.max(1, m - 1))} accessibilityRole="button" accessibilityLabel={str.detail.cookCustomMinus}>
                       <Ionicons name="remove" size={26} color={ny.padYta} />
@@ -2679,6 +2708,7 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   cookIngredItemAvbockad: { textDecorationLine: 'line-through', opacity: 0.45 },
   cookTimer: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 8, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 999, backgroundColor: c.surfaceSubtle, borderWidth: 1, borderColor: c.borderLight },
   cookTimerAktiv: { backgroundColor: c.primaryBtn, borderColor: c.primaryBtn },
+  cookTimerFullt: { opacity: 0.6 },
   cookTimerText: { fontSize: 16, fontWeight: '700', color: c.primary },
   cookTimerTextAktiv: { color: '#fff' },
   cookStepLabel: { fontSize: 17, fontWeight: '700', color: c.primary },
@@ -2705,6 +2735,7 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   cookFrågaKnappTextPrimar: { color: ny.rubrikLjus },
   cookFrågaKnappTextFara: { color: ny.fara },
   cookFrågaKnappTextAvbryt: { color: ny.textDampad },
+  egenNamn: { height: 48, borderRadius: 14, paddingHorizontal: 14, backgroundColor: ny.ljus, fontSize: 16, color: ny.text },
   egenRad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 20, paddingVertical: 8 },
   egenStegKnapp: { width: 52, height: 52, borderRadius: 26, backgroundColor: ny.ljus, alignItems: 'center', justifyContent: 'center' },
   egenTid: { fontFamily: nyFont.fet, fontSize: 30, color: ny.text, textAlign: 'center' },
