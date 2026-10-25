@@ -24,6 +24,10 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { common } from '../lib/svenska';
 import { passaInom, type Resize } from '../lib/bildstorlek';
 
+/** Ett recept som tolkats ur en länk, en text eller ett foto. */
+export type ImportedRecipe = { title: string; description: string | null; imageUrl: string | null; instructions: string | null; servings: number; cookMinutes?: number | null; ingredients: Array<{ name: string; quantity: number | null; unit: string | null; originalName?: string | null; section?: string | null; quantityMin?: number | null; qualifier?: AmountQualifier | null }> };
+export type ImportedRecipes = ImportedRecipe & { recipes?: ImportedRecipe[] };
+
 /**
  * Läser bildens mått och räknar ut hur den ska skalas. Själva uträkningen bor
  * i bildstorlek.ts där den går att testa; här är bara måtthämtningen, som

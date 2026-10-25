@@ -434,7 +434,7 @@ recipesRouter.post('/from-url', recipeAbuseLimiter, requireAuth, aiDailyUserLimi
   if (!body.success) { res.status(400).json({ error: 'Ogiltig URL' }); return; }
 
   try {
-    const scraped = await scrapeRecipe(body.data.url);
+    const [scraped, ...övriga] = await scrapeRecipe(body.data.url);
 
     // Översätt INNAN stripIngredient: strippningen kan bara svenska
     // deskriptorer, så "fresh chopped parsley" måste bli "färsk hackad
@@ -454,7 +454,7 @@ recipesRouter.post('/from-url', recipeAbuseLimiter, requireAuth, aiDailyUserLimi
     ]);
 
     // Return with normalized names but quantity/unit preserved
-    res.json({
+    const första = {
       ...scraped,
       description,
       ingredients: scraped.ingredients.map((i, idx) => ({
@@ -465,7 +465,16 @@ recipesRouter.post('/from-url', recipeAbuseLimiter, requireAuth, aiDailyUserLimi
         // upp på rader där den inte har något att visa.
         originalName: översatta[idx] !== i.name ? i.name : null,
       })),
-    });
+    };
+    // Fler recept än ett kommer bara ur AI-tolkningen (t.ex. en Instagram-
+    // bildtext med en hel veckomeny). Den svarar redan på svenska med egen
+    // beskrivning, så översättning och ny beskrivning behövs inte för dem.
+    const alla = [första, ...övriga.map(r => ({
+      ...r,
+      ingredients: r.ingredients.map(i => ({ ...i, name: stripIngredient(i.name), originalName: null })),
+    }))];
+    // Bakåtkompatibelt som fotoflödet: äldre appar läser toppnivån (= första).
+    res.json({ ...första, recipes: alla });
   } catch (err) {
     const { status, error } = aiErrorResponse(err, AI_UNAVAILABLE_RECIPE, 'Kunde inte hämta receptet');
     res.status(status).json({ error });
@@ -497,7 +506,7 @@ const MANGD_REGEL = `- Är mängden ett intervall ("3–4 dl", "1-2 tsk"): quant
 const RECEPT_TEXT_SYSTEM_PROMPT = `Du är ett system som extraherar receptinformation från fri text på svenska eller engelska.
 Returnera ENBART giltig JSON utan förklaringar eller markdown-kodblock.
 
-JSON-schema — ETT objekt per separat recept på bilderna:
+JSON-schema — ETT objekt per separat recept i texten:
 {
   "recipes": [
     {
@@ -515,6 +524,7 @@ Regler:
 - quantity är ett tal (float) eller null om ingen mängd anges
 - unit ska vara EN av: dl, l, liter, ml, cl, msk, tsk, krm, g, kg, st, knippe, näve, nypa, klyfta — eller null
 - Extrahera ALLA ingredienser och steg du ser, ignorera navigation, annonser och annat sidinnehåll
+- Står det FLERA separata recept i texten (t.ex. en veckomeny med fem rätter) blir det ett objekt per recept, i textens ordning. Slå aldrig ihop två rätter.
 - Ingrediensnamn på svenska (översätt om texten är på engelska)
 - cookMinutes: receptets TOTALA tid i hela minuter (förberedelse + tillagning) om receptet anger en tid, t.ex. "ca 45 min" → 45, "1 timme" → 60. Anger receptet ingen tid: null. Gissa ALDRIG utifrån stegen.
 - instructions: om steg finns, ett steg per rad, "1. Förbered X\n2. Stek Y\n3. Servera" — varje steg på egen rad med \n emellan, annars null
@@ -536,28 +546,34 @@ Undantag — gäller bara när texten INTE innehåller något recept utan är en
  * receptdata) till ett recept via Claude. Delad av /parse-text och
  * URL-scrapingens fallback när ingen JSON-LD hittas.
  */
-async function parseRecipeTextWithAI(text: string, opts: { writeOwnRecipe?: boolean } = {}): Promise<ScrapedRecipe> {
+async function parseRecipeTextWithAI(text: string, opts: { writeOwnRecipe?: boolean } = {}): Promise<ScrapedRecipe[]> {
   if (!anthropic) throw new Error('AI-tolkning inte tillgänglig');
 
   const msg = await anthropic.messages.create({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 2048,
+    // Fem recept i en bildtext är ~3000 tokens svar; 2048 kapade JSON:en mitt
+    // i. Bara genererade tokens debiteras, så taket kostar inget i sig.
+    max_tokens: 8192,
     system: RECEPT_TEXT_SYSTEM_PROMPT + (opts.writeOwnRecipe ? WRITE_OWN_RECIPE_RULE : ''),
     messages: [{ role: 'user', content: text.slice(0, 80000) }],
   });
   await bokförAiKostnad('claude-haiku-4-5-20251001', msg.usage);
   const raw = textUr(msg);
+  if (msg.stop_reason === 'max_tokens') throw new Error(FOR_MANGA_RECEPT);
   const tolkat = tolkaJsonSvar(raw) as { recipes?: ReceptRå[] } & ReceptRå;
   // Systemprompten ber modellen packa in svaret i { recipes: [...] } (samma
   // schema som fotoflödet), så det formatet måste läsas i första hand. Faller
   // tillbaka på plattat objekt ifall modellen ändå svarar utan omslag.
-  const parsed: ReceptRå = Array.isArray(tolkat.recipes) ? tolkat.recipes[0] ?? {} : tolkat;
-  // Tom lista (inte mat, se BARA_RECEPT_REGEL) eller ett tomt skal är samma
-  // sak som inget svar: "hittade inget recept", inte ett tomt "Okänt recept".
-  if (saknarReceptinnehåll(parsed)) throw new InteJsonError(raw);
+  const kandidater: ReceptRå[] = Array.isArray(tolkat.recipes) ? tolkat.recipes : [tolkat];
+  // Tom lista (inte mat, se BARA_RECEPT_REGEL) eller tomma skal är samma sak
+  // som inget svar: "hittade inget recept", inte ett tomt "Okänt recept".
+  const funna = kandidater.filter(r => r && !saknarReceptinnehåll(r));
+  if (funna.length === 0) throw new InteJsonError(raw);
   // Samma städning och längdtak som fotoflödet.
-  return städaRecept(parsed);
+  return funna.map(städaRecept);
 }
+
+const FOR_MANGA_RECEPT = 'Texten innehöll för mycket för att läsa på en gång. Prova med några recept i taget.';
 
 // POST /api/recipes/parse-text
 recipesRouter.post('/parse-text', parseTextLimiter, requireAuth, aiDailyUserLimiter, asyncHandler(async (req, res) => {
@@ -569,7 +585,8 @@ recipesRouter.post('/parse-text', parseTextLimiter, requireAuth, aiDailyUserLimi
   if (!anthropic) { res.status(503).json({ error: 'AI-tolkning inte tillgänglig' }); return; }
 
   try {
-    res.json(await parseRecipeTextWithAI(body.data.text, { writeOwnRecipe: true }));
+    const alla = await parseRecipeTextWithAI(body.data.text, { writeOwnRecipe: true });
+    res.json({ ...alla[0], recipes: alla });
   } catch (err) {
     if (err instanceof InteJsonError) {
       console.error('Text parsing: inget recept i texten.', err.råtext.slice(0, 200));
@@ -854,7 +871,7 @@ function parseInstructions(raw: any): string | null {
 
 const INSTAGRAM_FEL = 'Instagram visar inte inlägget för oss – kopiera bildtexten och klistra in den i stället.';
 
-async function scrapeRecipe(url: string): Promise<ScrapedRecipe> {
+async function scrapeRecipe(url: string): Promise<ScrapedRecipe[]> {
   // Delade Instagram-inlägg kommer som en länk utan bildtext. Instagram visar
   // inloggningsväggen för vanliga hämtningar, men lägger bildtexten i
   // metataggarna för länkförhandsvisningar — så hämta som en sådan och tolka
@@ -869,12 +886,11 @@ async function scrapeRecipe(url: string): Promise<ScrapedRecipe> {
       const html = await res.text();
       const caption = extractMetaText(html);
       if (caption.length < 40) throw new Error(INSTAGRAM_FEL);
-      const parsed = await parseRecipeTextWithAI(caption);
+      const recept = await parseRecipeTextWithAI(caption);
       // Ingen bild: Instagrams bildlänkar är signerade och går ut, och deras
       // CDN nekar ofta hämtning utifrån — det blev "Kunde inte ladda bilden".
       // Hellre tomt, så att man kan lägga till en egen.
-      parsed.imageUrl = null;
-      return parsed;
+      return recept.map(r => ({ ...r, imageUrl: null }));
     } catch {
       throw new Error(INSTAGRAM_FEL);
     }
@@ -896,7 +912,7 @@ async function scrapeRecipe(url: string): Promise<ScrapedRecipe> {
     try {
       const data = JSON.parse(match[1]);
       const recipe = findRecipeNode(data);
-      if (recipe) return parseJsonLdRecipe(recipe, url, html);
+      if (recipe) return [parseJsonLdRecipe(recipe, url, html)];
     } catch { /* skip malformed blocks */ }
   }
 
@@ -910,9 +926,10 @@ async function scrapeRecipe(url: string): Promise<ScrapedRecipe> {
     // (och på vissa sajter hela receptet) ligger.
     const text = [extractMetaText(html), htmlTillText(html)].filter(Boolean).join('\n\n');
     if (!text) throw new Error('Hittade inget recept på sidan');
-    const parsed = await parseRecipeTextWithAI(text);
-    if (!parsed.imageUrl) parsed.imageUrl = extractOgImage(html);
-    return parsed;
+    const recept = await parseRecipeTextWithAI(text);
+    // Sidans bild hör till det första (oftast enda) receptet.
+    if (!recept[0].imageUrl) recept[0].imageUrl = extractOgImage(html);
+    return recept;
   } catch (err) {
     if (err instanceof InteJsonError) throw new Error('Hittade inget recept på sidan');
     throw err;

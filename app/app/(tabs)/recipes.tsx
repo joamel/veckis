@@ -26,7 +26,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '@clerk/expo';
 import * as SecureStore from '../../src/lib/secureStorage';
-import { useApiClient, type RecipeWithIngredients, type WeekMenuItemWithRecipe } from '../../src/api/client';
+import { useApiClient, type RecipeWithIngredients, type WeekMenuItemWithRecipe, type ImportedRecipe } from '../../src/api/client';
+
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
 import { useToast } from '../../src/context/ToastContext';
@@ -57,6 +58,9 @@ import { Murverk, murverkHojd } from '../../src/components/nydesign/Murverk';
 import { TagLabel, isFavoriteTag } from '../../src/components/TagLabel';
 import { orderTags, tagChips } from '../../src/lib/tagOrder';
 import { cleanPastedUrl, extractUrl, pastedLink, anyLink } from '../../src/lib/extractUrl';
+
+/** Var ett importerat recept kom ifrån — sparas på receptet (källa + Original-länk). */
+type ImportSource = { source: 'photo' | 'url_import' | 'ai_paste'; sourceUrl?: string | null };
 
 // Labels hämtas från de centraliserade veckodagarna (mån-först) så inget
 // dagnamn är hårdkodat i komponenten — då räcker det att översätta svenska.ts.
