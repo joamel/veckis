@@ -1,4 +1,5 @@
-// Instagram-karusell vecka 44: veckomeny + fem vardagsrecept, ett per bild
+// Instagram vecka 44, tipsinlägget "Hinner inte handla?" (gamla stilen; veckomenyn
+// ligger i veckomeny.mjs, söndagsinlägget och reelen i sondag.mjs)
 // (1080×1350, 4:5). Mörkgrön bakgrund, lime grönsakssiluett per recept.
 // Varje bild byggs som HTML och fotograferas med Chrome headless:
 //   node app/store/instagram/v44/source/gen.mjs
@@ -80,114 +81,6 @@ h1 { font-weight: 700; letter-spacing: -1px; margin: 10px 0 0; line-height: 1.04
 
 const page = inner => `<!doctype html><html><head><meta charset="utf-8"><style>${CSS}</style></head><body>${inner}</body></html>`;
 
-// Samma recept som i BILDTEXTER.md — ändras de här, ändra där också.
-export const RECIPES = [
-  { day: 'Måndag', short: 'Mån', veg: 'broccoli', minutes: 25, title: 'Sticky sojakyckling', teaser: 'Blank, söt och salt – med ris och broccoli.', ingredients: [
-    '600 g kycklinglårfilé', '1 msk olja', '3 msk japansk soja', '2 msk honung', '2 vitlöksklyftor', '1 msk riven ingefära', '3 dl jasminris', '250 g broccoli', '2 salladslökar', '1 msk sesamfrön',
-  ], steps: [
-    'Koka riset och broccolin.',
-    'Skär kycklingen i bitar och stek den gyllene i oljan.',
-    'Rör ihop soja, honung, pressad vitlök och ingefära.',
-    'Häll såsen över kycklingen och låt koka ihop tills den blir blank och klibbig, ca 3 minuter.',
-    'Servera med ris och broccoli. Strö över salladslök och sesamfrön.',
-  ] },
-  { day: 'Tisdag', short: 'Tis', veg: 'pepper', minutes: 35, title: 'Halloumi på plåt med sötpotatis', teaser: 'Allt på en plåt – tzatzikin gör du medan det rostas.', ingredients: [
-    '800 g sötpotatis', '1 röd paprika', '1 rödlök', '2 msk olivolja', '1 tsk paprikapulver', 'salt och peppar', '400 g halloumi', '2 dl turkisk yoghurt', '½ gurka', '1 vitlöksklyfta',
-  ], steps: [
-    'Sätt ugnen på 225 °C.',
-    'Skär sötpotatisen i klyftor och paprika och lök i bitar. Vänd med olja, paprikapulver, salt och peppar på en plåt och rosta i 20 minuter.',
-    'Skiva halloumin, lägg den på plåten och rosta 10 minuter till.',
-    'Riv gurkan, krama ur vätskan och rör ner i yoghurten med pressad vitlök och salt.',
-    'Servera plåten med tzatzikin.',
-  ] },
-  { day: 'Onsdag', short: 'Ons', veg: 'lemon', minutes: 20, title: 'Laxpasta med citron och spenat', teaser: 'Krämig och frisk – veckans snabbaste.', ingredients: [
-    '400 g pasta', '400 g laxfilé', '1 vitlöksklyfta', '1 msk smör', '2,5 dl matlagningsgrädde', '1 citron', '65 g babyspenat', 'salt och peppar', 'riven parmesan',
-  ], steps: [
-    'Koka pastan.',
-    'Skär laxen i bitar och stek den i smöret med pressad vitlök.',
-    'Häll på grädden, riv ner citronskalet och pressa i saften.',
-    'Rör ner spenaten och låt den sjunka ihop.',
-    'Vänd ner pastan, smaka av och toppa med parmesan.',
-  ] },
-  { day: 'Torsdag', short: 'Tor', veg: 'chili', minutes: 30, title: 'Chili sin carne', teaser: 'Vegetarisk, mättande och billig.', ingredients: [
-    '1 gul lök', '2 vitlöksklyftor', '1 röd paprika', '1 msk olja', '1 msk chilipulver', '1 tsk spiskummin', '400 g krossade tomater', '2 burkar bönmix à 380 g', '1 tsk salt', '3 dl ris', 'gräddfil till servering',
-  ], steps: [
-    'Koka riset.',
-    'Hacka lök och vitlök och tärna paprikan.',
-    'Fräs grönsakerna i oljan med chilipulver och spiskummin.',
-    'Häll i krossade tomater och sköljda bönor. Låt puttra i 15 minuter.',
-    'Smaka av med salt och servera med ris och en klick gräddfil.',
-  ] },
-  { day: 'Fredag', short: 'Fre', veg: 'avocado', minutes: 25, title: 'Ugnsnachos', teaser: 'Fredagsmys direkt ur ugnsformen.', ingredients: [
-    '400 g nötfärs', '1 påse tacokrydda', '1 dl vatten', '200 g tortillachips', '1 burk tacosås', '150 g riven ost', '2 tomater', '1 avokado', '2 dl gräddfil',
-  ], steps: [
-    'Sätt ugnen på 225 °C.',
-    'Bryn färsen och rör ner tacokrydda och vatten. Låt koka ihop.',
-    'Bred ut chipsen i en ugnsform och fördela färs, tacosås och ost.',
-    'Gratinera i 8–10 minuter.',
-    'Toppa med tärnad tomat, avokado och gräddfil.',
-  ] },
-];
-
-const cover = () => page(`
-  ${veg('chili', 'width:120px;height:120px;left:28px;top:56px;transform:rotate(-10deg)')}
-  ${veg('lemon', 'width:110px;height:110px;right:30px;top:90px;transform:rotate(12deg)')}
-  ${veg('broccoli', 'width:120px;height:120px;left:34px;bottom:56px;transform:rotate(-8deg)')}
-  ${veg('avocado', 'width:110px;height:110px;right:36px;bottom:70px;transform:rotate(16deg)')}
-  <div class="wrap" style="justify-content:center">
-    <img class="icon" src="${ICON}">
-    <div class="kicker">Veckomeny · v.44</div>
-    <h1>Veckans middagar<br>är redan klara.</h1>
-    <p class="sub">Sticky kyckling, halloumi på plåt, laxpasta, chili och ugnsnachos.</p>
-    <div class="hint">Svep → och spara dem i Handlis</div>
-  </div>`);
-
-const weekMenu = () => page(`
-  <div class="wrap" style="justify-content:center">
-    <div class="kicker">Förslag · måndag–fredag</div>
-    <h1>Veckomenyn</h1>
-    <div class="cards">${RECIPES.map(r => `
-      <div class="card"><div class="day">${r.short}</div>
-        <div style="flex:1"><b>${r.title}</b><span>${r.teaser} ${r.minutes} min.</span></div>
-        <svg viewBox="0 0 200 200" fill="${LIME}">${VEG[r.veg]}</svg></div>`).join('')}
-    </div>
-  </div>`);
-
-const howTo = () => page(`
-  <div class="wrap" style="justify-content:center">
-    <div class="kicker">Spara recepten i Handlis</div>
-    <h1>Så gör du</h1>
-    <div class="cards">${[
-      { t: 'Ta en skärmbild', d: 'I Handlis: Recept → + → Fota eller välj bild. Handlis läser ut ingredienser och instruktioner.' },
-      { t: 'Eller tryck Dela → Handlis', d: 'Recepten står också i bildtexten och hämtas direkt till appen.' },
-      { t: 'Lägg dem på veckomenyn', d: 'Ingredienserna hamnar på inköpslistan med ett tryck.' },
-    ].map((it, i) => `
-      <div class="card" style="align-items:flex-start;padding:16px 18px"><div class="num">${i + 1}</div>
-        <div><b>${it.t}</b><span style="font-size:14.5px">${it.d}</span></div></div>`).join('')}
-    </div>
-  </div>`);
-
-const recipe = r => page(`
-  <div class="recipe">
-    <header>${veg(r.veg, 'width:135px;height:135px;right:-46px;top:-36px;transform:rotate(14deg)')}
-    <div class="kicker">${r.kicker ?? r.day} · ${r.minutes} min · 4 portioner</div>
-    <h1>${r.title}</h1></header>
-    <div class="box"><h3>Ingredienser</h3>
-      <div class="ingr">${r.ingredients.map(i => `<div>${i}</div>`).join('')}</div></div>
-    <div class="box"><h3>Instruktioner</h3>
-      <ol class="steps">${r.steps.map(s => `<li>${s}</li>`).join('')}</ol></div>
-  </div>
-  <div class="foot"><span>${r.foot ?? 'Ta en skärmbild → spara i Handlis'}</span><span>@handlis.app</span></div>`);
-
-const cta = () => page(`
-  <div class="wrap" style="justify-content:center">
-    <img class="icon" src="${ICON}">
-    <h1>Gör vardagen enkel<br>– med Handlis 💚</h1>
-    <p class="sub">Spara recepten, planera veckan och få inköpslistan sorterad efter din butik. Gratis att använda.</p>
-    <div class="vegrow">${RECIPES.map(r => `<svg viewBox="0 0 200 200" fill="${LIME}">${VEG[r.veg]}</svg>`).join('')}</div>
-    <div class="btns"><div class="btn">App Store</div><div class="btn">Google Play</div></div>
-    <div class="link">Länk i bion · handlis.app</div>
-  </div>`);
 
 // Post 2: "Skriv vad du är sugen på" — steg för steg med en RIKTIG önskan och
 // det Handlis faktiskt svarade (skärmbilder 2026-10-22). Ändra inte svaret för
@@ -299,7 +192,6 @@ const tipCta = () => page(`
   </div>`);
 
 const POSTS = {
-  '1-veckans-recept': [cover(), weekMenu(), howTo(), ...RECIPES.map(recipe), cta()],
   '2-skriv-vad-du-ar-sugen-pa': [tipCover(), step2(), step3(), tipIdeas(), tipCta()],
 };
 

@@ -4,17 +4,16 @@ Bilderna är 1080 × 1350 (4:5 – högsta formatet Instagram tar emot i flödet
 (Chrome headless; recepten står i `RECIPES` i samma fil).
 
 ## Mån 26/10 – Veckans middagar är redan klara
-Mapp: `1-veckans-recept/` (9 bilder: omslag, veckomenyn mån–fre, "Så gör du", ett recept per vardag, avslutning)
+Mapp: `1-veckans-recept/` (9 bilder, ny stil: omslag, veckomenyn mån–fre, "Så gör du", ett recept per vardag i egen färg, avslutning). Byggs med `source/veckomeny.mjs`, recepten i `source/recipes.mjs`.
 
 Recepten står i sin helhet både på bilderna och i bildtexten. Skärmbild →
-"Fota eller välj bild" fungerar för alla fem. **Dela → Handlis** läser bildtexten
-via länken, men länkimporten tar i dag bara det FÖRSTA receptet (se backloggen) –
-publicera inte "Dela"-tipset förrän det är fixat, eller byt bild 2.
+"Fota eller välj bild" fungerar för alla fem. Dela-tipset är borttaget: länkimporten
+tar bara det FÖRSTA receptet (se backloggen).
 
 Bildtext (håll under 2 200 tecken – Instagrams gräns):
 
 > Veckans middagar är redan klara 🍽️ Fem enkla vardagsrätter – från sticky kyckling till fredagens ugnsnachos.
-> Spara dem i Handlis: ta en skärmbild och välj "Fota eller välj bild" – eller tryck Dela → Handlis. Lägg dem på veckomenyn, så hamnar ingredienserna på inköpslistan.
+> Spara dem i Handlis: ta en skärmbild och välj "Fota eller välj bild". Lägg dem på veckomenyn, så hamnar ingredienserna på inköpslistan.
 >
 > MÅNDAG – Sticky sojakyckling (25 min, 4 port)
 > 600 g kycklinglårfilé, 1 msk olja, 3 msk japansk soja, 2 msk honung, 2 vitlöksklyftor, 1 msk riven ingefära, 3 dl jasminris, 250 g broccoli, 2 salladslökar, 1 msk sesamfrön.
@@ -55,3 +54,26 @@ Prompten och svaret på bild 2–3 är RIKTIGA (instruktionerna lätt redigerade
 > Vad skulle du skriva först? 👇 Länk i bion.
 >
 > #middagstips #restmat #matsvinn #vardagsmat #skafferiet #hemmalagat #veckomeny #handlis
+
+---
+
+## Sön 25/10 (eller nästa söndag) – Dags att storhandla!
+Mapp: `3-sondag-storhandla/` (4 bilder, ny stil: handskrivna rubriker + stämpeln "Handla en gång ✓"). Byggs med `source/sondag.mjs`.
+
+> Söndag = storhandling? 🛒
+> Fyra snabba koll innan du går: bestäm veckans middagar, kolla kyl, frys och skafferi, fråga hushållet vad som saknas – och skriv listan i butikens ordning.
+> I Handlis blir veckomenyn en inköpslista med ett tryck, sorterad efter din butik, och hela hushållet lägger till i samma lista.
+>
+> Vad glömmer du oftast? 👇 Länk i bion.
+>
+> #storhandla #veckohandling #inköpslista #veckomeny #söndag #planering #handlis
+
+---
+
+## Tis 27/10 – Reel: Vilken dag brukar du storhandla?
+Filer: `4-reel-vilken-dag.mp4` (med melodin från `aterkommande/source/music.mjs`), `4-reel-vilken-dag-tyst.mp4` (välj ett populärt ljud i Instagram), omslag `4-reel-vilken-dag-omslag.jpg`. 13 s, 1080×1920. Kort och gjord för kommentarer – svara på varenda en.
+
+> Vilken dag brukar du storhandla? 🛒 Skriv din dag i kommentarerna 👇
+> (Vi gissar på söndag.)
+>
+> #storhandla #veckohandling #inköpslista #veckomeny #handlis
