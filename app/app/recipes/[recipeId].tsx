@@ -30,6 +30,8 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import * as Notifications from 'expo-notifications';
 import { hittaMinuter, formateraNedräkning, formateraTidsetikett } from '../../src/lib/cookTimer';
+import { minimeraLagning, återupptaLagning } from '../../src/lib/cookSessions';
+import { useExperiment } from '../../src/lib/experiments';
 import { TidsSnurra, type Ankare } from '../../src/components/TidsSnurra';
 import { kvarvarandePåSteg } from '../../src/lib/cookIngredients';
 
@@ -218,6 +220,13 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
   const [timrar, setTimrar] = useState<Map<number, number>>(new Map());
   const [timerNu, setTimerNu] = useState(() => Date.now());
   const timerNotisIds = useRef<Map<number, string>>(new Map());
+  // Minimera (dev-läget): laga-läget läggs undan med steg, avbockningar och
+  // timrar kvar, och en list längst ned leder tillbaka (LagaLista).
+  const lagaMinimera = useExperiment('dev-mode');
+  const minimeradRef = useRef(false);
+  // Frågan när man avslutar med timrar igång. Inne i laga-läget, inte via
+  // ConfirmDialog: en modal ovanpå en modal syns inte på iOS.
+  const [avslutaFråga, setAvslutaFråga] = useState(false);
   const [heroLoading, setHeroLoading] = useState(false);
   const [heroError, setHeroError] = useState(false);
 
@@ -547,8 +556,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
       // Öppnas först när receptet finns: laga-läget renderar stegen, och utan
       // data hade det visat ett tomt skal en kort stund.
       if (cookRequested && (r.instructions ?? '').trim()) {
-        setCookStep(0);
-        setCookMode(true);
+        öppnaLaga(r.id);
         if (!onClose) router.setParams({ cook: undefined });
       }
       if (edit === '1' && r.ingredients.length === 0) {
@@ -776,10 +784,52 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
   // nollställdes timern bara för att man ville läsa nästa steg.
   useEffect(() => {
     if (cookMode) return;
+    setAvslutaFråga(false);
     setTimrar(new Map());
+    // Minimerad: timrarna och notiserna lever vidare i lagningen (cookSessions).
+    if (minimeradRef.current) {
+      minimeradRef.current = false;
+      timerNotisIds.current.clear();
+      return;
+    }
     for (const id of timerNotisIds.current.values()) Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
     timerNotisIds.current.clear();
   }, [cookMode]);
+
+  /** Öppnar laga-läget — där man var om lagningen minimerats, annars från början. */
+  function öppnaLaga(recipeId: string) {
+    const s = återupptaLagning(recipeId);
+    if (s) {
+      setCookStep(s.step);
+      setCookChecked(new Map(s.checked));
+      setTimrar(new Map(s.timers.map(t => [t.step, t.endsAt])));
+      timerNotisIds.current = new Map(s.timers.filter(t => t.notisId).map(t => [t.step, t.notisId as string]));
+    } else {
+      setCookStep(0);
+    }
+    setCookMode(true);
+  }
+
+  function minimeraLaga() {
+    if (!recipe) return;
+    minimeraLagning({
+      recipeId: recipe.id,
+      title: recipe.title,
+      step: cookStep,
+      checked: [...cookChecked],
+      timers: [...timrar].map(([step, endsAt]) => ({ step, endsAt, notisId: timerNotisIds.current.get(step) ?? null })),
+      servings: scaledServings,
+    });
+    minimeradRef.current = true;
+    setCookMode(false);
+  }
+
+  /** Avsluta: med timrar igång (dev-läget) frågas först — de skulle annars
+   *  försvinna utan förvarning. */
+  function avslutaLaga() {
+    if (lagaMinimera && timrar.size > 0) { setAvslutaFråga(true); return; }
+    setCookMode(false);
+  }
 
   // Ett nyimporterat recept öppnas i redigeringsläget (edit=import), så att
   // taggar kan läggas till utan ett extra tryck. De föreslagna (suggested=…)
@@ -1913,7 +1963,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
             ) : (
               <Text style={s.instructionsText}>{visadeInstruktioner}</Text>
             )}
-            <Pressable style={s.wideBtnSkog} onPress={() => { setCookStep(0); setCookMode(true); }} accessibilityLabel={str.detail.cookA11y}>
+            <Pressable style={s.wideBtnSkog} onPress={() => öppnaLaga(recipe.id)} accessibilityLabel={str.detail.cookA11y}>
               <Ionicons name="restaurant-outline" size={20} color={ny.lime} />
               <Text style={s.wideBtnSkogText}>{str.detail.cookNow}</Text>
             </Pressable>
@@ -2033,7 +2083,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
           : COOK_INGRED_MIN_H;
         const andraTimrar = [...timrar.keys()].filter(i => i !== cookStep).sort((a, b) => a - b);
         return (
-          <Modal visible={cookMode} transparent={false} animationType="slide" onRequestClose={() => setCookMode(false)}>
+          <Modal visible={cookMode} transparent={false} animationType="slide" onRequestClose={() => (lagaMinimera ? minimeraLaga() : setCookMode(false))}>
             {/* Egen provider: en Modal är en egen rotvy, och på iOS gav
                 SafeAreaView där inget avstånd — rubriken hamnade under klockan. */}
             <SafeAreaProvider>
@@ -2041,7 +2091,12 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
             <SafeAreaView style={s.cookContainer}>
               <View style={s.cookHeader}>
                 <Text style={s.cookRecipeTitle} numberOfLines={1}>{recipe.title}</Text>
-                <Pressable onPress={() => setCookMode(false)} style={s.cookClose} accessibilityLabel={str.detail.cookClose}>
+                {lagaMinimera && (
+                  <Pressable onPress={minimeraLaga} style={s.cookClose} accessibilityLabel={str.detail.cookMinimize}>
+                    <Ionicons name="chevron-down" size={24} color={c.textMuted} />
+                  </Pressable>
+                )}
+                <Pressable onPress={avslutaLaga} style={s.cookClose} accessibilityLabel={str.detail.cookClose}>
                   <Ionicons name="close" size={24} color={c.textMuted} />
                 </Pressable>
               </View>
@@ -2193,13 +2248,31 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
                     <Ionicons name="arrow-forward" size={20} color="#fff" />
                   </Pressable>
                 ) : (
-                  <Pressable style={s.cookNavBtnPrimary} onPress={() => setCookMode(false)}>
+                  <Pressable style={s.cookNavBtnPrimary} onPress={avslutaLaga}>
                     <Ionicons name="checkmark" size={20} color="#fff" />
                     <Text style={s.cookNavTextPrimary}>{str.detail.cookDone}</Text>
                   </Pressable>
                 )}
               </View>
             </SafeAreaView>
+            {avslutaFråga && (
+              <View style={s.cookFrågaBakgrund}>
+                <View style={s.cookFrågaKort}>
+                  <Text style={s.cookFrågaTitel}>{str.detail.cookStopTitle}</Text>
+                  <Text style={s.cookFrågaText}>{str.detail.cookStopMessage(timrar.size)}</Text>
+                  <Pressable style={s.cookNavBtnPrimary} onPress={() => { setAvslutaFråga(false); minimeraLaga(); }}>
+                    <Ionicons name="chevron-down" size={20} color="#fff" />
+                    <Text style={s.cookNavTextPrimary}>{str.detail.cookMinimize}</Text>
+                  </Pressable>
+                  <Pressable style={s.cookFrågaKnapp} onPress={() => { setAvslutaFråga(false); setCookMode(false); }}>
+                    <Text style={s.cookFrågaFara}>{str.detail.cookStopEnd}</Text>
+                  </Pressable>
+                  <Pressable style={s.cookFrågaKnapp} onPress={() => setAvslutaFråga(false)}>
+                    <Text style={s.cookFrågaAvbryt}>{common.actions.cancel}</Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
             </View>
             </SafeAreaProvider>
           </Modal>
@@ -2546,6 +2619,13 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   cookNavText: { fontSize: 15, fontWeight: '600', color: c.textSecondary },
   cookNavBtnPrimary: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 14, backgroundColor: c.primaryBtn },
   cookNavTextPrimary: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  cookFrågaBakgrund: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 },
+  cookFrågaKort: { backgroundColor: c.surface, borderRadius: 20, padding: 20, gap: 10, maxWidth: 420, width: '100%', alignSelf: 'center' },
+  cookFrågaTitel: { fontSize: 19, fontWeight: '700', color: c.text },
+  cookFrågaText: { fontSize: 15, lineHeight: 22, color: c.textMuted, marginBottom: 6 },
+  cookFrågaKnapp: { alignItems: 'center', paddingVertical: 12 },
+  cookFrågaFara: { fontSize: 15, fontWeight: '700', color: '#ef4444' },
+  cookFrågaAvbryt: { fontSize: 15, fontWeight: '600', color: c.textMuted },
   ingredientList: { maxHeight: 220 },
   checkRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.background },
   checkLabel: { fontSize: 15, color: c.text, flex: 1 },

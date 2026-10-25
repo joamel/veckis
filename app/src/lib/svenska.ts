@@ -886,6 +886,12 @@ export const recipes = {
     cookPrev:       'Föregående',
     cookNext:       'Nästa',
     cookDone:       'Klart!',
+    cookMinimize:   'Minimera',
+    cookStopTitle:  'Timrarna går fortfarande',
+    cookStopMessage: (n: number) => `${n === 1 ? 'En timer' : `${n} timrar`} går. Avslutar du laga-läget stoppas ${n === 1 ? 'den' : 'de'}. Minimera i stället så går ${n === 1 ? 'den' : 'de'} vidare.`,
+    cookStopEnd:    'Avsluta och stoppa',
+    cookPillStep:   (steg: number) => `steg ${steg}`,
+    cookPillA11y:   (rätt: string) => `Fortsätt laga ${rätt}`,
   },
 
   transfer: {

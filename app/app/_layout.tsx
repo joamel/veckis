@@ -27,6 +27,7 @@ import { ConfirmProvider } from '../src/context/ConfirmContext';
 import { SpotlightTipProvider, useWelcomeGate } from '../src/context/SpotlightTipContext';
 import { ThemeProvider, useTheme, useNy } from '../src/context/ThemeContext';
 import { DesignProvider, useDesign } from '../src/context/DesignContext';
+import { LagaLista } from '../src/components/LagaLista';
 import { WelcomeModal } from '../src/components/WelcomeModal';
 import { VersionBanner } from '../src/components/VersionBanner';
 import { WakeupIndicator } from '../src/components/WakeupIndicator';
@@ -179,6 +180,8 @@ function NavigationGuard() {
           scrollEdgeEffects: { top: 'hidden', bottom: 'hidden', left: 'hidden', right: 'hidden' },
         }}
       />
+      {/* Minimerade laga-lägen med sina timrar, på alla skärmar. */}
+      <LagaLista />
       <WelcomeModal visible={welcomeState === 'show'} onDone={markWelcomeSeen} />
     </>
   );

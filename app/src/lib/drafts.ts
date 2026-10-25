@@ -138,6 +138,11 @@ export function createDraftStore<T extends object>(namespace?: string) {
       hydrate();
       return utkast.has(key);
     },
+    /** Alla utkast i lagret — för vyer som visar flera på en gång. */
+    alla(): MedTid<T>[] {
+      hydrate();
+      return [...utkast.values()];
+    },
   };
 }
 
