@@ -50,6 +50,26 @@ export function återupptaLagning(recipeId: string): CookSession | null {
   return s.sparadVid >= Date.now() - MAX_ÅLDER_MS ? s : null;
 }
 
+/** Ändrar en minimerad lagning på plats, t.ex. när en timer stoppas från
+ *  klockans ark. Lagningen ligger kvar även utan timrar. */
+export function ändraLagning(recipeId: string, fn: (s: CookSession) => CookSession): void {
+  const s = lager.hamta(recipeId);
+  if (!s) return;
+  const { sparadVid: _, ...utan } = s;
+  lager.spara(recipeId, fn(utan));
+  meddela();
+}
+
+/** Avslutar en minimerad lagning utan att öppna den. Returnerar den, så att
+ *  anroparen kan avboka notiserna. */
+export function avslutaLagning(recipeId: string): CookSession | null {
+  const s = lager.hamta(recipeId);
+  if (!s) return null;
+  lager.slang(recipeId);
+  meddela();
+  return s;
+}
+
 export function pågåendeLagningar(): MedTid<CookSession>[] {
   const gräns = Date.now() - MAX_ÅLDER_MS;
   return lager.alla().filter(s => s.sparadVid >= gräns);

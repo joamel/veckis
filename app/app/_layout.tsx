@@ -27,7 +27,7 @@ import { ConfirmProvider } from '../src/context/ConfirmContext';
 import { SpotlightTipProvider, useWelcomeGate } from '../src/context/SpotlightTipContext';
 import { ThemeProvider, useTheme, useNy } from '../src/context/ThemeContext';
 import { DesignProvider, useDesign } from '../src/context/DesignContext';
-import { LagaLista } from '../src/components/LagaLista';
+import { LagaKlocka } from '../src/components/LagaKlocka';
 import { WelcomeModal } from '../src/components/WelcomeModal';
 import { VersionBanner } from '../src/components/VersionBanner';
 import { WakeupIndicator } from '../src/components/WakeupIndicator';
@@ -181,7 +181,7 @@ function NavigationGuard() {
         }}
       />
       {/* Minimerade laga-lägen med sina timrar, på alla skärmar. */}
-      <LagaLista />
+      <LagaKlocka />
       <WelcomeModal visible={welcomeState === 'show'} onDone={markWelcomeSeen} />
     </>
   );

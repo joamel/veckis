@@ -30,7 +30,8 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import * as Notifications from 'expo-notifications';
 import { hittaMinuter, formateraNedräkning, formateraTidsetikett } from '../../src/lib/cookTimer';
-import { minimeraLagning, återupptaLagning } from '../../src/lib/cookSessions';
+import { minimeraLagning, återupptaLagning, useLagningar } from '../../src/lib/cookSessions';
+import { larmaTimer, LARM_FÖNSTER_MS } from '../../src/lib/timerLarm';
 import { useExperiment } from '../../src/lib/experiments';
 import { TidsSnurra, type Ankare } from '../../src/components/TidsSnurra';
 import { kvarvarandePåSteg } from '../../src/lib/cookIngredients';
@@ -221,7 +222,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
   const [timerNu, setTimerNu] = useState(() => Date.now());
   const timerNotisIds = useRef<Map<number, string>>(new Map());
   // Minimera (dev-läget): laga-läget läggs undan med steg, avbockningar och
-  // timrar kvar, och en list längst ned leder tillbaka (LagaLista).
+  // timrar kvar, och klockan nere till höger leder tillbaka (LagaKlocka).
   const lagaMinimera = useExperiment('dev-mode');
   const minimeradRef = useRef(false);
   // Frågan när man avslutar med timrar igång. Inne i laga-läget, inte via
@@ -749,6 +750,24 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
     return () => clearInterval(id);
   }, [harTimrar]);
   const timerKvar = (steg: number) => Math.max(0, ((timrar.get(steg) ?? 0) - timerNu) / 1000);
+
+  // Larm (dev-läget) när en timer i det öppna laga-läget slår om: vibration
+  // och pling, en gång per timer. Minimerade timrar larmar LagaKlocka.
+  const larmadeTimrar = useRef(new Set<string>());
+  useEffect(() => {
+    if (!lagaMinimera) return;
+    for (const [steg, slut] of timrar) {
+      const nyckel = `${steg}:${slut}`;
+      if (slut <= timerNu && slut > timerNu - LARM_FÖNSTER_MS && !larmadeTimrar.current.has(nyckel)) {
+        larmadeTimrar.current.add(nyckel);
+        larmaTimer();
+      }
+    }
+  }, [timerNu, timrar, lagaMinimera]);
+
+  // Klockan nere till höger ligger över sidans nedre del medan något lagas —
+  // extra luft så att "Laga nu" och det sista i receptet går att nå.
+  const pågåendeLagningar = useLagningar();
 
   /** Startar nedräkning på steget och schemalägger notisen som faktiskt larmar.
    *  Utan notis vore timern bara en siffra man måste stå och titta på. */
@@ -1354,6 +1373,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
           // Bara medan ett fält är fokuserat, annars vore det en tom lucka
           // under formuläret.
           editMode && tangentbordH > 0 && (activeNameIdx !== null || activeUnitIdx !== null || stepFocused) && { paddingBottom: tangentbordH + 80 },
+          !editMode && pågåendeLagningar.length > 0 && { paddingBottom: 170 },
         ]}
         keyboardShouldPersistTaps="always"
         scrollEventThrottle={16}
