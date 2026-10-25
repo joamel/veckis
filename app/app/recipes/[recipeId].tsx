@@ -30,7 +30,7 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import * as Notifications from 'expo-notifications';
 import { hittaMinuter, formateraNedräkning, formateraTidsetikett } from '../../src/lib/cookTimer';
-import { minimeraLagning, återupptaLagning, useLagningar } from '../../src/lib/cookSessions';
+import { minimeraLagning, återupptaLagning, useLagningar, EGEN_TIMER_BAS, ärEgenTimer } from '../../src/lib/cookSessions';
 import { larmaTimer, LARM_FÖNSTER_MS } from '../../src/lib/timerLarm';
 import { useExperiment } from '../../src/lib/experiments';
 import { TidsSnurra, type Ankare } from '../../src/components/TidsSnurra';
@@ -42,7 +42,7 @@ import { cloudinaryOptimized } from '../../src/lib/cloudinaryUrl';
 import { TagLabel } from '../../src/components/TagLabel';
 import { ShoppingListPicker } from '../../src/components/ShoppingListPicker';
 import { getISOWeek } from '../../src/lib/week';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -228,6 +228,11 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
   // Frågan när man avslutar med timrar igång. Inne i laga-läget, inte via
   // ConfirmDialog: en modal ovanpå en modal syns inte på iOS.
   const [avslutaFråga, setAvslutaFråga] = useState(false);
+  // Egen timer (dev-läget): valfri tid, inte knuten till något steg.
+  const [egenTimerÖppen, setEgenTimerÖppen] = useState(false);
+  const [egenMinuter, setEgenMinuter] = useState(5);
+  // Arkens nederkant i laga-läget hålls fri från hemindikatorn.
+  const insets = useSafeAreaInsets();
   const [heroLoading, setHeroLoading] = useState(false);
   const [heroError, setHeroError] = useState(false);
 
@@ -804,6 +809,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
   useEffect(() => {
     if (cookMode) return;
     setAvslutaFråga(false);
+    setEgenTimerÖppen(false);
     setTimrar(new Map());
     // Minimerad: timrarna och notiserna lever vidare i lagningen (cookSessions).
     if (minimeradRef.current) {
@@ -827,6 +833,13 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
       setCookStep(0);
     }
     setCookMode(true);
+  }
+
+  function startaEgenTimer() {
+    const egna = [...timrar.keys()].filter(ärEgenTimer);
+    const nyckel = egna.length ? Math.max(...egna) + 1 : EGEN_TIMER_BAS;
+    void startaTimer(nyckel, egenMinuter);
+    setEgenTimerÖppen(false);
   }
 
   function minimeraLaga() {
@@ -2204,18 +2217,22 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
                     <View style={s.cookAndraTimrar}>
                       {andraTimrar.map(i => {
                         const kvar = timerKvar(i);
+                        const tid = kvar <= 0 ? str.detail.cookTimerKlar : formateraNedräkning(kvar);
+                        // En egen timer hör inte till något steg: ett tryck stoppar den.
+                        const egen = ärEgenTimer(i);
                         return (
                           <Pressable
                             key={i}
                             style={[s.cookAndraTimer, kvar <= 0 && s.cookAndraTimerKlar]}
-                            onPress={() => setCookStep(i)}
+                            onPress={() => (egen ? stoppaTimer(i) : setCookStep(i))}
                             accessibilityRole="button"
-                            accessibilityLabel={str.detail.cookTimerAnnatStegA11y(i + 1)}
+                            accessibilityLabel={egen ? str.detail.cookCustomStopA11y : str.detail.cookTimerAnnatStegA11y(i + 1)}
                           >
                             <Ionicons name="timer-outline" size={14} color={kvar <= 0 ? '#fff' : c.primary} />
                             <Text style={[s.cookAndraTimerText, kvar <= 0 && s.cookTimerTextAktiv]}>
-                              {str.detail.cookTimerAnnatSteg(i + 1, kvar <= 0 ? str.detail.cookTimerKlar : formateraNedräkning(kvar))}
+                              {egen ? str.detail.cookCustomChip(tid) : str.detail.cookTimerAnnatSteg(i + 1, tid)}
                             </Text>
+                            {egen && <Ionicons name="close" size={14} color={kvar <= 0 ? '#fff' : c.primary} />}
                           </Pressable>
                         );
                       })}
@@ -2250,6 +2267,12 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
                       </Pressable>
                     );
                   })()}
+                  {lagaMinimera && (
+                    <Pressable style={s.cookTimer} onPress={() => setEgenTimerÖppen(true)} accessibilityRole="button" accessibilityLabel={str.detail.cookCustomTimerA11y}>
+                      <Ionicons name="add-circle-outline" size={20} color={c.primary} />
+                      <Text style={s.cookTimerText}>{str.detail.cookCustomTimer}</Text>
+                    </Pressable>
+                  )}
                   </View>
                 </ScrollView>
               </View>
@@ -2275,23 +2298,54 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
                 )}
               </View>
             </SafeAreaView>
+            {/* Samma utseende som ConfirmDialog: ett ark i nederkanten med runda
+                knappar. Inte ConfirmDialog själv — en modal ovanpå en modal syns
+                inte på iOS. */}
             {avslutaFråga && (
-              <View style={s.cookFrågaBakgrund}>
-                <View style={s.cookFrågaKort}>
+              <Pressable style={s.cookFrågaBakgrund} onPress={() => setAvslutaFråga(false)}>
+                <Pressable style={[s.cookFrågaArk, { paddingBottom: insets.bottom + 16 }]} onPress={() => {}}>
                   <Text style={s.cookFrågaTitel}>{str.detail.cookStopTitle}</Text>
                   <Text style={s.cookFrågaText}>{str.detail.cookStopMessage(timrar.size)}</Text>
-                  <Pressable style={s.cookNavBtnPrimary} onPress={() => { setAvslutaFråga(false); minimeraLaga(); }}>
-                    <Ionicons name="chevron-down" size={20} color="#fff" />
-                    <Text style={s.cookNavTextPrimary}>{str.detail.cookMinimize}</Text>
+                  <Pressable style={[s.cookFrågaKnapp, s.cookFrågaPrimar]} onPress={() => { setAvslutaFråga(false); minimeraLaga(); }}>
+                    <Text style={[s.cookFrågaKnappText, s.cookFrågaKnappTextPrimar]}>{str.detail.cookMinimize}</Text>
                   </Pressable>
-                  <Pressable style={s.cookFrågaKnapp} onPress={() => { setAvslutaFråga(false); setCookMode(false); }}>
-                    <Text style={s.cookFrågaFara}>{str.detail.cookStopEnd}</Text>
+                  <Pressable style={[s.cookFrågaKnapp, s.cookFrågaSekundar]} onPress={() => { setAvslutaFråga(false); setCookMode(false); }}>
+                    <Text style={[s.cookFrågaKnappText, s.cookFrågaKnappTextFara]}>{str.detail.cookStopEnd}</Text>
                   </Pressable>
                   <Pressable style={s.cookFrågaKnapp} onPress={() => setAvslutaFråga(false)}>
-                    <Text style={s.cookFrågaAvbryt}>{common.actions.cancel}</Text>
+                    <Text style={[s.cookFrågaKnappText, s.cookFrågaKnappTextAvbryt]}>{common.actions.cancel}</Text>
                   </Pressable>
-                </View>
-              </View>
+                </Pressable>
+              </Pressable>
+            )}
+            {egenTimerÖppen && (
+              <Pressable style={s.cookFrågaBakgrund} onPress={() => setEgenTimerÖppen(false)}>
+                <Pressable style={[s.cookFrågaArk, { paddingBottom: insets.bottom + 16 }]} onPress={() => {}}>
+                  <Text style={s.cookFrågaTitel}>{str.detail.cookCustomTimer}</Text>
+                  <View style={s.egenRad}>
+                    <Pressable style={s.egenStegKnapp} onPress={() => setEgenMinuter(m => Math.max(1, m - 1))} accessibilityRole="button" accessibilityLabel={str.detail.cookCustomMinus}>
+                      <Ionicons name="remove" size={26} color={ny.padYta} />
+                    </Pressable>
+                    <Text style={[s.egenTid, { width: str.detail.cookCustomMinutes(egenMinuter).length * 17 + 12 }]}>{str.detail.cookCustomMinutes(egenMinuter)}</Text>
+                    <Pressable style={s.egenStegKnapp} onPress={() => setEgenMinuter(m => Math.min(480, m + 1))} accessibilityRole="button" accessibilityLabel={str.detail.cookCustomPlus}>
+                      <Ionicons name="add" size={26} color={ny.padYta} />
+                    </Pressable>
+                  </View>
+                  <View style={s.egenSnabbval}>
+                    {[1, 3, 5, 10, 15, 20, 30, 45, 60].map(m => (
+                      <Pressable key={m} style={[s.egenChip, egenMinuter === m && s.egenChipVald]} onPress={() => setEgenMinuter(m)}>
+                        <Text style={[s.egenChipText, egenMinuter === m && s.egenChipTextVald, { width: String(m).length * 9 + 4 }]}>{m}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                  <Pressable style={[s.cookFrågaKnapp, s.cookFrågaPrimar]} onPress={startaEgenTimer}>
+                    <Text style={[s.cookFrågaKnappText, s.cookFrågaKnappTextPrimar]}>{str.detail.cookCustomStart}</Text>
+                  </Pressable>
+                  <Pressable style={s.cookFrågaKnapp} onPress={() => setEgenTimerÖppen(false)}>
+                    <Text style={[s.cookFrågaKnappText, s.cookFrågaKnappTextAvbryt]}>{common.actions.cancel}</Text>
+                  </Pressable>
+                </Pressable>
+              </Pressable>
             )}
             </View>
             </SafeAreaProvider>
@@ -2639,13 +2693,26 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   cookNavText: { fontSize: 15, fontWeight: '600', color: c.textSecondary },
   cookNavBtnPrimary: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 14, backgroundColor: c.primaryBtn },
   cookNavTextPrimary: { fontSize: 15, fontWeight: '700', color: '#fff' },
-  cookFrågaBakgrund: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 },
-  cookFrågaKort: { backgroundColor: c.surface, borderRadius: 20, padding: 20, gap: 10, maxWidth: 420, width: '100%', alignSelf: 'center' },
-  cookFrågaTitel: { fontSize: 19, fontWeight: '700', color: c.text },
-  cookFrågaText: { fontSize: 15, lineHeight: 22, color: c.textMuted, marginBottom: 6 },
-  cookFrågaKnapp: { alignItems: 'center', paddingVertical: 12 },
-  cookFrågaFara: { fontSize: 15, fontWeight: '700', color: '#ef4444' },
-  cookFrågaAvbryt: { fontSize: 15, fontWeight: '600', color: c.textMuted },
+  // Arken i laga-läget ser ut som ConfirmDialog (samma mått och färger).
+  cookFrågaBakgrund: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  cookFrågaArk: { backgroundColor: ny.kort, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 24, paddingTop: 22, gap: 10 },
+  cookFrågaTitel: { fontFamily: nyFont.fet, fontSize: 20, color: ny.text },
+  cookFrågaText: { fontSize: 15, lineHeight: 22, color: ny.textDampad, marginBottom: 6 },
+  cookFrågaKnapp: { height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
+  cookFrågaPrimar: { backgroundColor: ny.valdYta },
+  cookFrågaSekundar: { backgroundColor: ny.ljus },
+  cookFrågaKnappText: { fontFamily: nyFont.halvfet, fontSize: 16, color: ny.padYta },
+  cookFrågaKnappTextPrimar: { color: ny.rubrikLjus },
+  cookFrågaKnappTextFara: { color: ny.fara },
+  cookFrågaKnappTextAvbryt: { color: ny.textDampad },
+  egenRad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 20, paddingVertical: 8 },
+  egenStegKnapp: { width: 52, height: 52, borderRadius: 26, backgroundColor: ny.ljus, alignItems: 'center', justifyContent: 'center' },
+  egenTid: { fontFamily: nyFont.fet, fontSize: 30, color: ny.text, textAlign: 'center' },
+  egenSnabbval: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginBottom: 6 },
+  egenChip: { paddingHorizontal: 14, height: 38, borderRadius: 19, backgroundColor: ny.ljus, justifyContent: 'center' },
+  egenChipVald: { backgroundColor: ny.valdYta },
+  egenChipText: { fontFamily: nyFont.halvfet, fontSize: 15, color: ny.padYta, textAlign: 'center' },
+  egenChipTextVald: { color: ny.rubrikLjus },
   ingredientList: { maxHeight: 220 },
   checkRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.background },
   checkLabel: { fontSize: 15, color: c.text, flex: 1 },

@@ -10,7 +10,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useTablet } from '../hooks/useTablet';
 import { nyFont, type NyPalett } from '../lib/nyDesign';
 import { formateraNedräkning } from '../lib/cookTimer';
-import { avslutaLagning, useLagningar, ändraLagning, type CookSession } from '../lib/cookSessions';
+import { avslutaLagning, useLagningar, ändraLagning, ärEgenTimer, type CookSession } from '../lib/cookSessions';
 import { larmaTimer, LARM_FÖNSTER_MS } from '../lib/timerLarm';
 import { recipes as str } from '../lib/svenska';
 
@@ -140,7 +140,7 @@ export function LagaKlocka() {
                   return (
                     <View key={t.step} style={st.timerRad}>
                       <Ionicons name="timer-outline" size={18} color={tKlar ? ny.lime : ny.padYta} />
-                      <Text style={st.timerSteg}>{str.detail.cookSheetStep(t.step + 1)}</Text>
+                      <Text style={st.timerSteg}>{ärEgenTimer(t.step) ? str.detail.cookCustomTimer : str.detail.cookSheetStep(t.step + 1)}</Text>
                       <Text style={[st.timerTid, tKlar && st.timerTidKlar, { width: text.length * 10 + 8 }]} numberOfLines={1}>{text}</Text>
                       <Pressable onPress={() => stoppaTimer(l, t.step)} hitSlop={8} accessibilityRole="button" accessibilityLabel={str.detail.cookStopTimerA11y(t.step + 1)}>
                         <Ionicons name="close-circle" size={22} color={ny.textDampad} />
@@ -185,6 +185,7 @@ const gorSt = (ny: NyPalett) => StyleSheet.create({
   timerSteg: { flex: 1, fontSize: 15, color: ny.text },
   timerTid: { fontFamily: nyFont.fet, fontSize: 17, color: ny.padYta, textAlign: 'right' },
   timerTidKlar: { color: ny.padYta },
-  avsluta: { alignSelf: 'flex-start', paddingVertical: 4 },
-  avslutaText: { fontSize: 14, fontWeight: '600', color: '#b3261e' },
+  // Som ConfirmDialogs sekundärknapp, med farofärgad text.
+  avsluta: { height: 44, borderRadius: 22, backgroundColor: ny.ljus, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  avslutaText: { fontFamily: nyFont.halvfet, fontSize: 15, color: ny.fara },
 });
