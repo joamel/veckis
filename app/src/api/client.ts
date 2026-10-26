@@ -186,6 +186,11 @@ export type ShoppingListWithItems = ShoppingList & { items: ShoppingItemWithReci
 // bakgrunden) för evigt: anropet varken lyckas eller kastar, så retry-logiken
 // nedan körs aldrig och skärmen snurrar för alltid.
 const REQUEST_TIMEOUT_MS = 15000;
+// AI-tolkningen av en länk eller text tar längre tid: en veckomeny med fem
+// recept tog ~25 s. Med 15 s avbröts anropet och gjordes om — dubbel väntan
+// och dubbel AI-kostnad (Railway-loggen 2026-10-26).
+const AI_TIMEOUT_MS = 60000;
+const AI_PATHS = ['/api/recipes/from-url', '/api/recipes/parse-text'];
 const TOKEN_TIMEOUT_MS = 12000;
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
@@ -237,7 +242,8 @@ export function useApiClient() {
     let res: Response;
     const startedAt = Date.now();
     const abortController = new AbortController();
-    const abortTimer = setTimeout(() => abortController.abort(), REQUEST_TIMEOUT_MS);
+    const timeoutMs = AI_PATHS.includes(path) ? AI_TIMEOUT_MS : REQUEST_TIMEOUT_MS;
+    const abortTimer = setTimeout(() => abortController.abort(), timeoutMs);
     try {
       // trackBackendRequest visar "Vaknar…"-indikatorn om fetch:en dröjer >3s
       // (kallstart) och släcker den när backend svarar. Utan detta retry:ade
@@ -553,13 +559,15 @@ export function useApiClient() {
       }
       return res.json() as Promise<RecipeWithIngredients>;
     },
+    // recipes: alla recept som hittades (en Instagram-bildtext kan ha en hel
+    // veckomeny). Toppnivån är det första — äldre backend skickar bara den.
     scrapeRecipe: (url: string) =>
-      request<{ title: string; description: string | null; imageUrl: string | null; instructions: string | null; servings: number; cookMinutes?: number | null; ingredients: Array<{ name: string; quantity: number | null; unit: string | null; originalName?: string | null; section?: string | null; quantityMin?: number | null; qualifier?: AmountQualifier | null }> }>('/api/recipes/from-url', { method: 'POST', body: JSON.stringify({ url }) }),
+      request<ImportedRecipes>('/api/recipes/from-url', { method: 'POST', body: JSON.stringify({ url }) }),
 
     parseRecipeText: (text: string) =>
-      request<{ title: string; description: string | null; imageUrl: string | null; instructions: string | null; servings: number; cookMinutes?: number | null; ingredients: Array<{ name: string; quantity: number | null; unit: string | null; originalName?: string | null; section?: string | null; quantityMin?: number | null; qualifier?: AmountQualifier | null }> }>('/api/recipes/parse-text', { method: 'POST', body: JSON.stringify({ text }) }),
+      request<ImportedRecipes>('/api/recipes/parse-text', { method: 'POST', body: JSON.stringify({ text }) }),
 
-    parseRecipeFromPhoto: async (photoUris: string[]): Promise<{ title: string; description: string | null; imageUrl: string | null; instructions: string | null; servings: number; cookMinutes?: number | null; ingredients: Array<{ name: string; quantity: number | null; unit: string | null; originalName?: string | null; section?: string | null; quantityMin?: number | null; qualifier?: AmountQualifier | null }> } & { recipes?: { title: string; description: string | null; imageUrl: string | null; instructions: string | null; servings: number; cookMinutes?: number | null; ingredients: Array<{ name: string; quantity: number | null; unit: string | null; originalName?: string | null; section?: string | null; quantityMin?: number | null; qualifier?: AmountQualifier | null }> }[] }> => {
+    parseRecipeFromPhoto: async (photoUris: string[]): Promise<ImportedRecipes> => {
       // Skala ner och komprimera INNAN uppladdning. En okomprimerad mobilbild är
       // ~4 MB, och som base64 ~5,3 MB över mobilnät — det är den överföringen som
       // dominerar väntetiden. Modellen skalar ändå ner allt över 1568 px längsta

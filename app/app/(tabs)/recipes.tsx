@@ -27,7 +27,6 @@ import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '@clerk/expo';
 import * as SecureStore from '../../src/lib/secureStorage';
 import { useApiClient, type RecipeWithIngredients, type WeekMenuItemWithRecipe, type ImportedRecipe } from '../../src/api/client';
-
 import { useHousehold } from '../../src/context/HouseholdContext';
 import { useHouseholdSocket } from '../../src/hooks/useHouseholdSocket';
 import { useToast } from '../../src/context/ToastContext';
@@ -496,6 +495,8 @@ export default function RecipesScreen() {
   const [photoUris, setPhotoUris] = useState<string[]>([]);
   // Tolkade recept som väntar på att användaren väljer vilka som ska sparas.
   const [flerRecept, setFlerRecept] = useState<TolkatRecept[] | null>(null);
+  // Var de flera recepten kom ifrån, så att de sparas med rätt källa.
+  const flerKallaRef = useRef<ImportSource>({ source: 'photo' });
   const [valdaRecept, setValdaRecept] = useState<Set<number>>(new Set());
   const [photoParsing, setPhotoParsing] = useState(false);
   const [photoLoadingStage, setPhotoLoadingStage] = useState<'reading' | 'analyzing' | 'creating' | null>(null);
@@ -566,6 +567,12 @@ export default function RecipesScreen() {
     try {
       const scraped = await client.scrapeRecipe(link);
       if (!householdId) return;
+      // En länk kan rymma flera recept (t.ex. ett Instagram-inlägg med en hel
+      // veckomeny i bildtexten). Då får man välja, precis som vid foto.
+      if ((scraped.recipes?.length ?? 0) > 1) {
+        visaFlerReceptVal(scraped.recipes!, { source: 'url_import', sourceUrl: link });
+        return;
+      }
       setCreating(true);
       const suggested = suggestRecipeTags({ title: scraped.title, cookMinutes: scraped.cookMinutes }, householdTags());
       const recipe = await client.createRecipe({
@@ -615,6 +622,11 @@ export default function RecipesScreen() {
     setParsing(true);
     try {
       const parsed = await client.parseRecipeText(pasteText.trim());
+      // Delat från Instagram kommer ofta som text (bildtexten), inte som länk.
+      if ((parsed.recipes?.length ?? 0) > 1) {
+        visaFlerReceptVal(parsed.recipes!, { source: 'ai_paste', sourceUrl: anyLink(pasteText) });
+        return;
+      }
       const usedTitle = title.trim() || parsed.title;
       const suggested = suggestRecipeTags({ title: usedTitle, cookMinutes: parsed.cookMinutes }, householdTags());
       setCreating(true);
@@ -703,13 +715,13 @@ export default function RecipesScreen() {
     });
   }
 
-  type TolkatRecept = Awaited<ReturnType<typeof client.parseRecipeFromPhoto>>;
+  type TolkatRecept = ImportedRecipe;
 
   // Skapar ett tolkat recept och lägger in det i listan. Bryts ut för att kunna
   // anropas både för ett ensamt recept och i följd för flera.
   // tags: föreslagna taggar — bara när receptet sedan öppnas i redigeringsläget,
   // där de syns. Sparas flera på en gång blir det inga förslag.
-  async function skapaTolkat(r: TolkatRecept, egenTitel: string | null, tags: string[] = []) {
+  async function skapaTolkat(r: TolkatRecept, egenTitel: string | null, tags: string[] = [], kalla: ImportSource = { source: 'photo' }) {
     if (!householdId) throw new Error(str.errors.generic);
     const recipe = await client.createRecipe({
       householdId,
@@ -717,7 +729,9 @@ export default function RecipesScreen() {
       title: egenTitel?.trim() || r.title,
       description: r.description,
       instructions: r.instructions,
-      source: 'photo',
+      source: kalla.source,
+      sourceUrl: kalla.sourceUrl ?? null,
+      imageUrl: r.imageUrl ?? null,
       servings: r.servings,
       cookMinutes: r.cookMinutes ?? null,
       ingredients: r.ingredients.map(i => ({ name: i.name, quantity: i.quantity, unit: i.unit, section: i.section ?? null, quantityMin: i.quantityMin ?? null, qualifier: i.qualifier ?? null })),
@@ -729,6 +743,8 @@ export default function RecipesScreen() {
   function stangSkapaSheet() {
     setShowModal(false);
     setTitle('');
+    setUrl('');
+    setPasteText('');
     setPhotoUris([]);
     setMode('url');
   }
@@ -737,7 +753,8 @@ export default function RecipesScreen() {
   // överförs till inköpslistan, och det skalar när uppslaget innehåller fler än
   // två. Allt förmarkerat — att spara alla är det vanliga, att välja bort
   // undantaget.
-  function visaFlerReceptVal(funna: TolkatRecept[]) {
+  function visaFlerReceptVal(funna: TolkatRecept[], kalla: ImportSource = { source: 'photo' }) {
+    flerKallaRef.current = kalla;
     setFlerRecept(funna);
     setValdaRecept(new Set(funna.map((_, i) => i)));
   }
@@ -751,7 +768,7 @@ export default function RecipesScreen() {
       const skapade = [];
       for (const rec of funna) {
         try {
-          skapade.push(await skapaTolkat(rec, null));
+          skapade.push(await skapaTolkat(rec, null, [], flerKallaRef.current));
         } catch (err) {
           // De som redan sparats ligger kvar i listan. En ren felruta fick det
           // att se ut som att inget sparats — tills recepten dök upp ändå.
