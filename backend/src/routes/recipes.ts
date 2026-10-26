@@ -546,7 +546,7 @@ Undantag — gäller bara när texten INTE innehåller något recept utan är en
  * receptdata) till ett recept via Claude. Delad av /parse-text och
  * URL-scrapingens fallback när ingen JSON-LD hittas.
  */
-async function parseRecipeTextWithAI(text: string, opts: { writeOwnRecipe?: boolean } = {}): Promise<ScrapedRecipe[]> {
+export async function parseRecipeTextWithAI(text: string, opts: { writeOwnRecipe?: boolean } = {}): Promise<ScrapedRecipe[]> {
   if (!anthropic) throw new Error('AI-tolkning inte tillgänglig');
 
   const msg = await anthropic.messages.create({
@@ -887,6 +887,9 @@ async function scrapeRecipe(url: string): Promise<ScrapedRecipe[]> {
       const caption = extractMetaText(html);
       if (caption.length < 40) throw new Error(INSTAGRAM_FEL);
       const recept = await parseRecipeTextWithAI(caption);
+      // Felsökning (2026-10-26): lokalt ger en veckomeny-bildtext fem recept, i
+      // produktion ett — Instagram kan ge datacenter en kortare text.
+      console.log(`[instagram] bildtext ${caption.length} tecken → ${recept.length} recept`);
       // Ingen bild: Instagrams bildlänkar är signerade och går ut, och deras
       // CDN nekar ofta hämtning utifrån — det blev "Kunde inte ladda bilden".
       // Hellre tomt, så att man kan lägga till en egen.
