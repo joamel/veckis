@@ -32,7 +32,7 @@ import * as Notifications from 'expo-notifications';
 import { hittaMinuter, formateraNedräkning, formateraTidsetikett } from '../../src/lib/cookTimer';
 import { minimeraLagning, återupptaLagning, avslutaLagning, useLagningar, EGEN_TIMER_BAS, ärEgenTimer, MAX_TIMRAR_PER_RÄTT, type CookSession } from '../../src/lib/cookSessions';
 import { KlockKnapp, LagaÖversikt, stoppaMinimeradTimer } from '../../src/components/LagaKlocka';
-import { larmaTimer, LARM_FÖNSTER_MS } from '../../src/lib/timerLarm';
+import { larmaTimer, stoppaLarm, LARM_FÖNSTER_MS } from '../../src/lib/timerLarm';
 import { useExperiment } from '../../src/lib/experiments';
 import { TidsSnurra, type Ankare } from '../../src/components/TidsSnurra';
 import { kvarvarandePåSteg } from '../../src/lib/cookIngredients';
@@ -810,6 +810,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
   }, [recipe?.title]);
 
   const stoppaTimer = useCallback((steg: number) => {
+    stoppaLarm();
     setTimrar(prev => { const n = new Map(prev); n.delete(steg); return n; });
     setTimerNamn(prev => { if (!prev.has(steg)) return prev; const n = new Map(prev); n.delete(steg); return n; });
     const id = timerNotisIds.current.get(steg);
@@ -839,6 +840,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
 
   /** Öppnar laga-läget — där man var om lagningen minimerats, annars från början. */
   function öppnaLaga(recipeId: string) {
+    stoppaLarm();
     const s = återupptaLagning(recipeId);
     if (s) {
       setCookStep(s.step);

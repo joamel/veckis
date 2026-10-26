@@ -11,7 +11,7 @@ import { useTablet } from '../hooks/useTablet';
 import { nyFont, type NyPalett } from '../lib/nyDesign';
 import { formateraNedräkning } from '../lib/cookTimer';
 import { avslutaLagning, useLagningar, ändraLagning, ärEgenTimer, type CookTimer } from '../lib/cookSessions';
-import { larmaTimer, LARM_FÖNSTER_MS } from '../lib/timerLarm';
+import { larmaTimer, stoppaLarm, LARM_FÖNSTER_MS } from '../lib/timerLarm';
 import { recipes as str } from '../lib/svenska';
 
 // Flikskärmarna har flikraden i nederkanten; där ligger klockan ovanför den.
@@ -47,7 +47,8 @@ export function KlockKnapp({ kvarS, antal, onPress, style }: {
   const etikett = kvarS === null ? null : klar ? str.detail.cookTimerKlar : formateraNedräkning(kvarS);
   return (
     <Animated.View pointerEvents="box-none" style={[st.wrap, style, { transform: [{ scale: puls }] }]}>
-      <Pressable style={[st.klocka, klar && st.klockaKlar]} onPress={onPress} accessibilityRole="button" accessibilityLabel={str.detail.cookClockA11y(antal)}>
+      {/* Ett tryck tystar ett ringande larm. */}
+      <Pressable style={[st.klocka, klar && st.klockaKlar]} onPress={() => { stoppaLarm(); onPress(); }} accessibilityRole="button" accessibilityLabel={str.detail.cookClockA11y(antal)}>
         <Ionicons name="timer-outline" size={etikett ? 20 : 26} color={klar ? ny.skog : ny.lime} />
         {/* Fast bredd: Android mäter siffror för smalt och klipper sista tecknet. */}
         {etikett && <Text style={[st.tid, klar && st.tidKlar, { width: KLOCKA_STORLEK - 6 }]} numberOfLines={1}>{etikett}</Text>}
@@ -146,6 +147,7 @@ export function LagaÖversikt({ lagningar, nu, onÖppna, onGåTillSteg, onStoppa
 
 /** Stoppar en timer i en minimerad lagning och avbokar dess notis. */
 export function stoppaMinimeradTimer(recipeId: string, timers: CookTimer[], step: number) {
+  stoppaLarm();
   const t = timers.find(x => x.step === step);
   if (t?.notisId) Notifications.cancelScheduledNotificationAsync(t.notisId).catch(() => {});
   ändraLagning(recipeId, s => ({ ...s, timers: s.timers.filter(x => x.step !== step) }));

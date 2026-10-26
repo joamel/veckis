@@ -55,3 +55,22 @@ function makeWav(samples) {
   writeFileSync('app/assets/sounds/delete.wav', makeWav(samples));
   console.log('delete.wav — Nedåtnota E4→E3, 280ms');
 }
+
+// timer.wav — Laga-lägets larm: tre korta pip (G6, 1568 Hz, med en svag
+// oktav ovanpå för att skära igenom köksljud), 120 ms var med 90 ms paus.
+// Spelas om var tredje sekund tills man reagerar (app/src/lib/timerLarm.ts).
+{
+  const PIP = 0.12, PAUS = 0.09, ANTAL = 3;
+  const n = Math.floor(SR * (ANTAL * PIP + (ANTAL - 1) * PAUS + 0.05));
+  const samples = Array.from({ length: n }, (_, i) => {
+    const t = i / SR;
+    const period = PIP + PAUS;
+    const k = Math.floor(t / period);
+    const tp = t - k * period;
+    if (k >= ANTAL || tp > PIP) return 0;
+    const env = Math.min(tp / 0.004, 1) * Math.min((PIP - tp) / 0.012, 1);
+    return 22000 * env * (0.8 * Math.sin(2 * Math.PI * 1568 * t) + 0.2 * Math.sin(2 * Math.PI * 3136 * t));
+  });
+  writeFileSync('app/assets/sounds/timer.wav', makeWav(samples));
+  console.log('timer.wav — tre pip G6, 0,6 s');
+}
