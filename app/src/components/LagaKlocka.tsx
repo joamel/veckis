@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, StyleSheet, Text, View } from 'react-native';
+import { Animated, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Notifications from 'expo-notifications';
 import { usePathname, useRouter } from 'expo-router';
@@ -10,19 +10,152 @@ import { useTheme } from '../context/ThemeContext';
 import { useTablet } from '../hooks/useTablet';
 import { nyFont, type NyPalett } from '../lib/nyDesign';
 import { formateraNedräkning } from '../lib/cookTimer';
-import { avslutaLagning, useLagningar, ändraLagning, ärEgenTimer, type CookSession } from '../lib/cookSessions';
+import { avslutaLagning, useLagningar, ändraLagning, ärEgenTimer, type CookTimer } from '../lib/cookSessions';
 import { larmaTimer, LARM_FÖNSTER_MS } from '../lib/timerLarm';
 import { recipes as str } from '../lib/svenska';
 
 // Flikskärmarna har flikraden i nederkanten; där ligger klockan ovanför den.
 const FLIKVÄGAR = new Set(['/', '/shopping', '/menu', '/recipes', '/settings']);
-const KNAPP = 56;
+export const KLOCKA_STORLEK = 56;
+
+/**
+ * Den runda klockknappen: kortaste nedräkningen under ikonen, en bricka med
+ * antalet lagningar, och puls när en timer är klar. Används både nere till
+ * höger i appen (LagaKlocka) och inne i laga-läget.
+ */
+export function KlockKnapp({ kvarS, antal, onPress, style }: {
+  kvarS: number | null;
+  antal: number;
+  onPress: () => void;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const { ny } = useTheme();
+  const st = useMemo(() => gorSt(ny), [ny]);
+  const klar = kvarS !== null && kvarS <= 0;
+
+  const puls = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (!klar) { puls.setValue(1); return; }
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(puls, { toValue: 1.12, duration: 450, useNativeDriver: true }),
+      Animated.timing(puls, { toValue: 1, duration: 450, useNativeDriver: true }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, [klar, puls]);
+
+  const etikett = kvarS === null ? null : klar ? str.detail.cookTimerKlar : formateraNedräkning(kvarS);
+  return (
+    <Animated.View pointerEvents="box-none" style={[st.wrap, style, { transform: [{ scale: puls }] }]}>
+      <Pressable style={[st.klocka, klar && st.klockaKlar]} onPress={onPress} accessibilityRole="button" accessibilityLabel={str.detail.cookClockA11y(antal)}>
+        <Ionicons name="timer-outline" size={etikett ? 20 : 26} color={klar ? ny.skog : ny.lime} />
+        {/* Fast bredd: Android mäter siffror för smalt och klipper sista tecknet. */}
+        {etikett && <Text style={[st.tid, klar && st.tidKlar, { width: KLOCKA_STORLEK - 6 }]} numberOfLines={1}>{etikett}</Text>}
+      </Pressable>
+      {antal > 1 && (
+        <View style={st.bricka} pointerEvents="none">
+          <Text style={st.brickaText}>{antal}</Text>
+        </View>
+      )}
+    </Animated.View>
+  );
+}
+
+export type ÖversiktLagning = {
+  recipeId: string;
+  title: string;
+  step: number;
+  timers: CookTimer[];
+  /** Receptet man står i laga-läget för just nu. */
+  aktuell?: boolean;
+};
+
+/**
+ * Listan i "Pågående lagning": varje rätt med steget och sina timrar, var och
+ * en med nedräkning och kryss. Samma innehåll utanför laga-läget (i ett ark)
+ * och inne i det (i laga-lägets eget ark — en modal på en modal syns inte på iOS).
+ */
+export function LagaÖversikt({ lagningar, nu, onÖppna, onGåTillSteg, onStoppaTimer, onAvsluta }: {
+  lagningar: ÖversiktLagning[];
+  nu: number;
+  /** Tryck på en annan rätt: till dess laga-läge. */
+  onÖppna: (recipeId: string) => void;
+  /** Tryck på en stegtimer i den aktuella rätten: till steget. */
+  onGåTillSteg?: (step: number) => void;
+  onStoppaTimer: (recipeId: string, step: number) => void;
+  onAvsluta?: (recipeId: string) => void;
+}) {
+  const { ny } = useTheme();
+  const st = useMemo(() => gorSt(ny), [ny]);
+  return (
+    <View style={st.lista}>
+      {lagningar.map(l => (
+        <View key={l.recipeId} style={[st.lagning, l.aktuell && st.lagningAktuell]}>
+          <Pressable
+            style={st.lagningHuvud}
+            disabled={l.aktuell}
+            onPress={() => onÖppna(l.recipeId)}
+            accessibilityRole={l.aktuell ? undefined : 'button'}
+            accessibilityLabel={l.aktuell ? l.title : str.detail.cookPillA11y(l.title)}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={st.lagningTitel} numberOfLines={2}>{l.title}</Text>
+              <Text style={st.lagningSteg}>{l.aktuell ? str.detail.cookSheetHere(l.step + 1) : str.detail.cookSheetStep(l.step + 1)}</Text>
+            </View>
+            {!l.aktuell && <Ionicons name="chevron-forward" size={20} color={ny.textDampad} />}
+          </Pressable>
+          {l.timers.length === 0 ? (
+            <Text style={st.ingenTimer}>{str.detail.cookSheetNoTimers}</Text>
+          ) : (
+            [...l.timers].sort((a, b) => a.endsAt - b.endsAt).map(t => {
+              const kvar = Math.max(0, (t.endsAt - nu) / 1000);
+              const tKlar = kvar <= 0;
+              const text = tKlar ? str.detail.cookTimerKlar : formateraNedräkning(kvar);
+              const egen = ärEgenTimer(t.step);
+              // I den aktuella rätten går en stegtimer till steget; annars till rätten.
+              const tillSteg = l.aktuell && !egen && onGåTillSteg;
+              return (
+                <View key={t.step} style={st.timerRad}>
+                  <Pressable
+                    style={st.timerEtikett}
+                    disabled={l.aktuell && !tillSteg}
+                    onPress={() => (tillSteg ? onGåTillSteg(t.step) : onÖppna(l.recipeId))}
+                    accessibilityRole="button"
+                  >
+                    <Ionicons name="timer-outline" size={18} color={tKlar ? ny.lime : ny.padYta} />
+                    <Text style={st.timerSteg}>{egen ? (t.name || str.detail.cookCustomTimer) : str.detail.cookSheetStep(t.step + 1)}</Text>
+                    <Text style={[st.timerTid, { width: text.length * 10 + 8 }]} numberOfLines={1}>{text}</Text>
+                  </Pressable>
+                  <Pressable onPress={() => onStoppaTimer(l.recipeId, t.step)} hitSlop={8} accessibilityRole="button" accessibilityLabel={str.detail.cookStopTimerA11y(t.step + 1)}>
+                    <Ionicons name="close-circle" size={22} color={ny.textDampad} />
+                  </Pressable>
+                </View>
+              );
+            })
+          )}
+          {!l.aktuell && onAvsluta && (
+            <Pressable style={st.avsluta} onPress={() => onAvsluta(l.recipeId)} accessibilityRole="button">
+              <Text style={st.avslutaText}>{str.detail.cookSheetEnd}</Text>
+            </Pressable>
+          )}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/** Stoppar en timer i en minimerad lagning och avbokar dess notis. */
+export function stoppaMinimeradTimer(recipeId: string, timers: CookTimer[], step: number) {
+  const t = timers.find(x => x.step === step);
+  if (t?.notisId) Notifications.cancelScheduledNotificationAsync(t.notisId).catch(() => {});
+  ändraLagning(recipeId, s => ({ ...s, timers: s.timers.filter(x => x.step !== step) }));
+}
 
 /**
  * Klockan nere till höger medan något lagas: minimerade laga-lägen med sina
- * timrar, på alla skärmar. Visar den nedräkning som går ut först; tryck →
- * ett ark med alla lagningar och timrar. Ligger ovanför plusknappen, som
- * sitter på samma ställe på flera skärmar.
+ * timrar, på alla skärmar. Tryck → "Pågående lagning" med alla rätter och
+ * timrar. Ligger ovanför plusknappen, som sitter på samma ställe på flera
+ * skärmar. Inne i laga-läget (en egen modal) ritar receptskärmen samma klocka.
  *
  * Larmar (vibration + pling) när en minimerad timer slår om medan appen är
  * öppen — oavsett skärm. Timrar i ett ÖPPET laga-läge larmar receptskärmen.
@@ -33,8 +166,6 @@ export function LagaKlocka() {
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
   const { sp } = useTablet();
-  const { ny } = useTheme();
-  const st = useMemo(() => gorSt(ny), [ny]);
   const [arkÖppet, setArkÖppet] = useState(false);
 
   const [nu, setNu] = useState(() => Date.now());
@@ -60,101 +191,36 @@ export function LagaKlocka() {
     }
   }, [nu, lagningar]);
 
+  if (lagningar.length === 0) return null;
+
   const allaTimrar = lagningar.flatMap(l => l.timers);
   const nästa = allaTimrar.length ? Math.min(...allaTimrar.map(t => t.endsAt)) : null;
   const kvarS = nästa === null ? null : Math.max(0, (nästa - nu) / 1000);
-  const klar = kvarS !== null && kvarS <= 0;
 
-  // Klar timer: klockan pulserar tills man tittar.
-  const puls = useRef(new Animated.Value(1)).current;
-  useEffect(() => {
-    if (!klar) { puls.setValue(1); return; }
-    const loop = Animated.loop(Animated.sequence([
-      Animated.timing(puls, { toValue: 1.12, duration: 450, useNativeDriver: true }),
-      Animated.timing(puls, { toValue: 1, duration: 450, useNativeDriver: true }),
-    ]));
-    loop.start();
-    return () => loop.stop();
-  }, [klar, puls]);
-
-  if (lagningar.length === 0) return null;
-
-  const öppnaLagning = (l: CookSession) => {
+  const öppna = (recipeId: string) => {
     setArkÖppet(false);
-    const portioner = l.servings ? `&servings=${l.servings}` : '';
-    router.push(`/recipes/${l.recipeId}?cook=1${portioner}` as never);
+    const l = lagningar.find(x => x.recipeId === recipeId);
+    const portioner = l?.servings ? `&servings=${l.servings}` : '';
+    router.push(`/recipes/${recipeId}?cook=1${portioner}` as never);
   };
-  const stoppaTimer = (l: CookSession, step: number) => {
-    const t = l.timers.find(x => x.step === step);
-    if (t?.notisId) Notifications.cancelScheduledNotificationAsync(t.notisId).catch(() => {});
-    ändraLagning(l.recipeId, s => ({ ...s, timers: s.timers.filter(x => x.step !== step) }));
-  };
-  const avsluta = (l: CookSession) => {
-    const s = avslutaLagning(l.recipeId);
+  const avsluta = (recipeId: string) => {
+    const s = avslutaLagning(recipeId);
     for (const t of s?.timers ?? []) if (t.notisId) Notifications.cancelScheduledNotificationAsync(t.notisId).catch(() => {});
     if (lagningar.length <= 1) setArkÖppet(false);
   };
 
   const bas = FLIKVÄGAR.has(pathname) ? sp(60) + insets.bottom : insets.bottom;
-  const bottom = bas + 20 + KNAPP + 12;
-  const etikett = kvarS === null ? null : klar ? str.detail.cookTimerKlar : formateraNedräkning(kvarS);
-
   return (
     <>
-      <Animated.View pointerEvents="box-none" style={[st.wrap, { bottom, transform: [{ scale: puls }] }]}>
-        <Pressable
-          style={[st.klocka, klar && st.klockaKlar]}
-          onPress={() => setArkÖppet(true)}
-          accessibilityRole="button"
-          accessibilityLabel={str.detail.cookClockA11y(lagningar.length)}
-        >
-          <Ionicons name="timer-outline" size={etikett ? 20 : 26} color={klar ? ny.skog : ny.lime} />
-          {/* Fast bredd: Android mäter siffror för smalt och klipper sista tecknet. */}
-          {etikett && <Text style={[st.tid, klar && st.tidKlar, { width: KNAPP - 6 }]} numberOfLines={1}>{etikett}</Text>}
-        </Pressable>
-        {lagningar.length > 1 && (
-          <View style={st.bricka} pointerEvents="none">
-            <Text style={st.brickaText}>{lagningar.length}</Text>
-          </View>
-        )}
-      </Animated.View>
-
+      <KlockKnapp kvarS={kvarS} antal={lagningar.length} onPress={() => setArkÖppet(true)} style={{ bottom: bas + 20 + KLOCKA_STORLEK + 12 }} />
       <DraggableBottomSheet visible={arkÖppet} onRequestClose={() => setArkÖppet(false)} title={str.detail.cookSheetTitle}>
-        <View style={st.lista}>
-          {lagningar.map(l => (
-            <View key={l.recipeId} style={st.lagning}>
-              <Pressable style={st.lagningHuvud} onPress={() => öppnaLagning(l)} accessibilityRole="button" accessibilityLabel={str.detail.cookPillA11y(l.title)}>
-                <View style={{ flex: 1 }}>
-                  <Text style={st.lagningTitel} numberOfLines={2}>{l.title}</Text>
-                  <Text style={st.lagningSteg}>{str.detail.cookSheetStep(l.step + 1)}</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color={ny.textDampad} />
-              </Pressable>
-              {l.timers.length === 0 ? (
-                <Text style={st.ingenTimer}>{str.detail.cookSheetNoTimers}</Text>
-              ) : (
-                [...l.timers].sort((a, b) => a.endsAt - b.endsAt).map(t => {
-                  const kvar = Math.max(0, (t.endsAt - nu) / 1000);
-                  const tKlar = kvar <= 0;
-                  const text = tKlar ? str.detail.cookTimerKlar : formateraNedräkning(kvar);
-                  return (
-                    <View key={t.step} style={st.timerRad}>
-                      <Ionicons name="timer-outline" size={18} color={tKlar ? ny.lime : ny.padYta} />
-                      <Text style={st.timerSteg}>{ärEgenTimer(t.step) ? (t.name || str.detail.cookCustomTimer) : str.detail.cookSheetStep(t.step + 1)}</Text>
-                      <Text style={[st.timerTid, tKlar && st.timerTidKlar, { width: text.length * 10 + 8 }]} numberOfLines={1}>{text}</Text>
-                      <Pressable onPress={() => stoppaTimer(l, t.step)} hitSlop={8} accessibilityRole="button" accessibilityLabel={str.detail.cookStopTimerA11y(t.step + 1)}>
-                        <Ionicons name="close-circle" size={22} color={ny.textDampad} />
-                      </Pressable>
-                    </View>
-                  );
-                })
-              )}
-              <Pressable style={st.avsluta} onPress={() => avsluta(l)} accessibilityRole="button">
-                <Text style={st.avslutaText}>{str.detail.cookSheetEnd}</Text>
-              </Pressable>
-            </View>
-          ))}
-        </View>
+        <LagaÖversikt
+          lagningar={lagningar}
+          nu={nu}
+          onÖppna={öppna}
+          onStoppaTimer={(recipeId, step) => stoppaMinimeradTimer(recipeId, lagningar.find(l => l.recipeId === recipeId)?.timers ?? [], step)}
+          onAvsluta={avsluta}
+        />
       </DraggableBottomSheet>
     </>
   );
@@ -163,7 +229,7 @@ export function LagaKlocka() {
 const gorSt = (ny: NyPalett) => StyleSheet.create({
   wrap: { position: 'absolute', right: 20 },
   klocka: {
-    width: KNAPP, height: KNAPP, borderRadius: KNAPP / 2, backgroundColor: ny.skog,
+    width: KLOCKA_STORLEK, height: KLOCKA_STORLEK, borderRadius: KLOCKA_STORLEK / 2, backgroundColor: ny.skog,
     alignItems: 'center', justifyContent: 'center',
     shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 8,
   },
@@ -176,16 +242,17 @@ const gorSt = (ny: NyPalett) => StyleSheet.create({
   },
   brickaText: { width: 14, textAlign: 'center', fontFamily: nyFont.fet, fontSize: 11, color: ny.skog },
   lista: { gap: 14, paddingBottom: 8 },
-  lagning: { backgroundColor: ny.kort, borderRadius: 18, padding: 14, gap: 8 },
+  lagning: { backgroundColor: ny.ljus, borderRadius: 18, padding: 14, gap: 8 },
+  lagningAktuell: { borderWidth: 2, borderColor: ny.valdYta },
   lagningHuvud: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   lagningTitel: { fontFamily: nyFont.fet, fontSize: 17, color: ny.text },
   lagningSteg: { fontSize: 13, color: ny.textDampad, marginTop: 2 },
   ingenTimer: { fontSize: 14, color: ny.textDampad },
   timerRad: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 4 },
+  timerEtikett: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
   timerSteg: { flex: 1, fontSize: 15, color: ny.text },
   timerTid: { fontFamily: nyFont.fet, fontSize: 17, color: ny.padYta, textAlign: 'right' },
-  timerTidKlar: { color: ny.padYta },
   // Som ConfirmDialogs sekundärknapp, med farofärgad text.
-  avsluta: { height: 44, borderRadius: 22, backgroundColor: ny.ljus, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  avsluta: { height: 44, borderRadius: 22, backgroundColor: ny.kort, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
   avslutaText: { fontFamily: nyFont.halvfet, fontSize: 15, color: ny.fara },
 });
