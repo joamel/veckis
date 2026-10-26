@@ -133,12 +133,13 @@ const REEL = page(C.lime, `
       $('cart').style.transform = 'translateX(' + ((1 - ease((t - 0.9) / 0.8)) * 400) + 'px)';
       $('v1').style.transform = 'rotate(' + (-10 + 6 * Math.sin(t * 2)) + 'deg)';
       $('v2').style.transform = 'rotate(' + (14 - 6 * Math.sin(t * 2.2)) + 'deg)';
-      // Scen 2: dagarna poppar upp, sedan hoppar markeringen fre → lör → sön.
+      // Scen 2: dagarna poppar upp, sedan går markeringen igenom alla dagar.
       const u = t - 3.6;
       for (let i = 0; i < 7; i++) {
         const el = $('d' + i);
         el.style.transform = 'scale(' + pop((u - i * 0.14) / 0.5) + ')';
-        const hl = u > 1.6 && Math.min(6, 4 + Math.floor((u - 1.6) / 0.9)) === i && u < 4.6;
+        // Markeringen går igenom hela veckan, mån → sön, och stannar på söndag.
+        const hl = u > 1.4 && Math.min(6, Math.floor((u - 1.4) / 0.48)) === i;
         el.style.background = hl ? '${C.lime}' : '#fff';
       }
       // Scen 3: pilen guppar.
