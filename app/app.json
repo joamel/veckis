@@ -30,7 +30,7 @@
     },
     "android": {
       "package": "com.handlis.app",
-      "versionCode": 24,
+      "versionCode": 25,
       "googleServicesFile": "./google-services.json",
       "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
@@ -62,6 +62,7 @@
       "./plugins/withDisableAutofill",
       "./plugins/withSingleTask",
       "./plugins/withUnlockScannerOrientation",
+      "./plugins/withExactAlarm",
       [
         "expo-image-picker",
         {

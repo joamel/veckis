@@ -14,11 +14,10 @@ import { useSyncExternalStore } from 'react';
 import * as SecureStore from './secureStorage';
 
 export const EXPERIMENTS = [
-  // Dev-läge: allt som är under utveckling, på en gång. Hittills:
-  // - förslaget på kategoriordning ur en enda handling (backend godtar det
-  //   bara från appadmin), så kortet går att prova utan fyra handlingar
-  // - "Dela mall" i veckomallarna (receptmenyn med tre val, korgen och
-  //   taggpulsen släpptes 2026-10-20)
+  // Dev-läge: allt som är under utveckling, på en gång. Just nu bara
+  // förslaget på kategoriordning ur en enda handling (backend godtar det bara
+  // från appadmin), så kortet går att prova utan fyra handlingar. Laga-lägets
+  // klocka och timrar, "Ändra mängd" och "Dela mall" släpptes 2026-10-26.
   'dev-mode',
 ] as const;
 

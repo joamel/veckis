@@ -1,3 +1,47 @@
+# Handlis 2.3.0, Android-bygge 25 — release notes
+
+Laga-läget med timrar som håller koll, och recept som ser ut som i
+kokboken. Versionen är fortfarande 2.3.0: allt nedan utom exakta larm på
+Android är ute som snabbuppdatering till alla med 2.3.0, även på iPhone.
+Bygge 25 behövs bara för att timerns notis ska komma på sekunden när appen
+är stängd (Android). Inget nytt iOS-bygge — iPhone larmar redan i tid.
+
+## Play Store — kort "Vad är nytt" (klistra in i Play Console)
+
+> **Laga utan att tappa tråden** – lägg undan laga-läget och fortsätt där du var. Klockan nere till höger visar alla timrar, även från flera rätter, och larmar när tiden är slut. Starta egna timrar med namn, t.ex. ”Äggen”. **Recept som i kokboken**: underrubriker som ”Fyllning” och mängder som ”ca 13 dl” eller ”3–4 dl”. Dessutom: flera recept ur samma text och ändra mängden direkt i inköpslistan.
+
+*(389 tecken utan stjärnorna — Play tillåter 500.)*
+
+## App Store — "Nyheter" (till nästa iOS-bygge; innehållet är redan ute som snabbuppdatering)
+
+> Laga utan att tappa tråden
+> Lägg undan laga-läget och fortsätt där du var – steget, det du redan hällt i och alla timrar finns kvar. Klockan nere till höger visar vad som är igång, även från flera rätter samtidigt, och larmar med ljud och vibration tills du tittar till maten. Starta egna timrar med namn, till exempel ”Äggen”.
+>
+> Recept som i kokboken
+> Underrubriker som ”Deg”, ”Fyllning” och ”Garnering” följer med när du hämtar ett recept, så mjölken i degen och mjölken i såsen hålls isär. Mängder som ”ca 13 dl”, ”3–4 dl” och ”ev. 1 dl russin” står kvar som receptet skrev dem – inköpslistan räknar med den högre siffran, och tillval bockas inte i av sig själva.
+>
+> Dessutom
+> • Flera recept ur samma länk eller text, till exempel en hel veckomeny i en Instagram-bildtext
+> • Ändra mängden direkt efter att du lagt till en vara i inköpslistan
+> • Dela en veckomall med någon annan
+> • Recept utan bild får en stor matsymbol
+
+## Nytt sedan bygge 24
+
+- **Laga-läget går att minimera** — steg, avbockade ingredienser och timrar finns kvar. Klockan nere till höger (även inne i laga-läget) visar kortaste nedräkningen och öppnar "Pågående lagning" med alla rätter och timrar; tryck för att gå till ett steg eller byta rätt. Receptsidan säger "Fortsätt laga · steg 3".
+- **Larm** — ljud och vibration var tredje sekund tills man reagerar (högst en minut) när en timer slår om med appen öppen; notisen när den är stängd. Med appen öppen kommer ingen sen notis i efterhand.
+- **Egna timrar** med valfritt namn, max 3 timrar per rätt. Bara krysset stoppar en timer. Avslutar man laga-läget med timrar igång frågas först.
+- **Exakta larm på Android** (kräver bygge 25): SCHEDULE_EXACT_ALARM. Android 12–13 beviljar den direkt; från Android 14 tipsar laga-läget en gång om "Alarm och påminnelser".
+- **Underrubriker i ingredienslistan** — från AI-tolkningen och från receptsajter (även Kökets "Fyllning"-rader); samma vara under olika rubriker slås inte ihop i receptet, men väl i inköpslistan.
+- **Mängder som i receptet** — "ca", "drygt", "knappt", "ev." och intervall sparas; inköpslistan räknar med den övre gränsen; "ev."-varor är inte förbockade vid överföring och börjar som "har hemma" i inventeringen. Mängden efter "ca" missades förut helt, och "1–2 tsk" blev 1,2 tsk.
+- **Flera recept ur en länk eller inklistrad text**.
+- **"Ändra mängd"** i bekräftelsen efter att en vara lagts till i inköpslistan; platshållaren visar att mängden kan skrivas direkt ("T.ex. 5 dl mjölk").
+- **Dela veckomall**.
+- **Matsymbol** för recept utan bild — stor och centrerad, och korten utan bild är lägre.
+- **I bakgrunden**: AI-tolkningen gör bara recept (längdtak, 30 tolkningar per dygn och konto), och fel från AI-tjänsten visas som läsbar text.
+
+---
+
 # Handlis 2.3.0 — release notes
 
 Dela recept direkt till Handlis, och snabblistan för de varor du köper varje

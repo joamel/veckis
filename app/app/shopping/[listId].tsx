@@ -87,7 +87,6 @@ import {
   getDesiredToggles,
 } from '../../src/lib/shoppingOfflineQueue';
 import { useDirtySince } from '../../src/hooks/useDirtySince';
-import { useExperiment } from '../../src/lib/experiments';
 import { amountOf, quickAmountLabel, quickListCandidates, quickListRows, stapleForName, RECENT_PURCHASE_MS, type QuickAmount } from '../../src/lib/quickList';
 
 /** Luft under listan när en knapp svävar ovanför lägg-till-baren: knappens
@@ -481,9 +480,6 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [renameValue, setRenameValue] = useState('');
   const [renameShowQuickList, setRenameShowQuickList] = useState(true);
-  // Dev-läget: "Ändra mängd" i toasten efter ett tillägg, och en platshållare
-  // som visar att mängden kan skrivas direkt ("5 dl mjölk").
-  const devMode = useExperiment('dev-mode');
   // Snabblistan: hushållets egna snabbvaror, att bocka i och lägga till på en gång.
   const [quickSheetOpen, setQuickSheetOpen] = useState(false);
   const [quickSelected, setQuickSelected] = useState<Set<string>>(new Set());
@@ -1153,21 +1149,17 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             const exists = prev.find(p => p.id === s.id);
             return exists ? prev.map(p => p.id === s.id ? s : p) : [...prev, s].sort((a, b) => a.name.localeCompare(b.name));
           });
-          // Dev-läget: varan läggs till direkt som förut, och mängden går att
-          // ändra efteråt med ett tryck — det snabba flödet blir inte längre.
-          // Raden slås upp när man trycker, så en ihopslagen rad (1 l + 1 l)
-          // öppnas som den står på listan.
-          if (devMode) {
-            showGlobalToast(str.toasts.addedShort(capitalize(itemName)), 'success', {
-              label: str.toasts.changeAmount,
-              onPress: () => {
-                const current = listRef.current?.items.find(i => i.id === item.id);
-                if (current) openEditItem(current);
-              },
-            });
-          } else {
-            showGlobalToast(str.toasts.added(capitalize(itemName)), 'success');
-          }
+          // Varan läggs till direkt som förut, och mängden går att ändra
+          // efteråt med ett tryck — det snabba flödet blir inte längre. Raden
+          // slås upp när man trycker, så en ihopslagen rad (1 l + 1 l) öppnas
+          // som den står på listan.
+          showGlobalToast(str.toasts.addedShort(capitalize(itemName)), 'success', {
+            label: str.toasts.changeAmount,
+            onPress: () => {
+              const current = listRef.current?.items.find(i => i.id === item.id);
+              if (current) openEditItem(current);
+            },
+          });
         }).catch(() => {});
       }
       setList(prev => {
@@ -2548,7 +2540,7 @@ export function ShoppingListDetail({ listId, onClose }: { listId: string; onClos
             ref={inputRef}
             containerStyle={{ flex: 1 }}
             style={s.addInput}
-            placeholder={devMode ? str.placeholders.addItemExample : str.placeholders.addItem}
+            placeholder={str.placeholders.addItemExample}
             value={newItem}
             onChangeText={setNewItem}
             returnKeyType="done"

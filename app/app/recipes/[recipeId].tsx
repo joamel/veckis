@@ -11,6 +11,7 @@ import {
   Dimensions,
   Image,
   Keyboard,
+  Linking,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -33,7 +34,7 @@ import { hittaMinuter, formateraNedräkning, formateraTidsetikett } from '../../
 import { minimeraLagning, återupptaLagning, avslutaLagning, useLagningar, EGEN_TIMER_BAS, ärEgenTimer, MAX_TIMRAR_PER_RÄTT, type CookSession } from '../../src/lib/cookSessions';
 import { KlockKnapp, LagaÖversikt, stoppaMinimeradTimer } from '../../src/components/LagaKlocka';
 import { larmaTimer, stoppaLarm, LARM_FÖNSTER_MS } from '../../src/lib/timerLarm';
-import { useExperiment } from '../../src/lib/experiments';
+import * as SecureStore from '../../src/lib/secureStorage';
 import { TidsSnurra, type Ankare } from '../../src/components/TidsSnurra';
 import { kvarvarandePåSteg } from '../../src/lib/cookIngredients';
 
@@ -222,9 +223,8 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
   const [timrar, setTimrar] = useState<Map<number, number>>(new Map());
   const [timerNu, setTimerNu] = useState(() => Date.now());
   const timerNotisIds = useRef<Map<number, string>>(new Map());
-  // Minimera (dev-läget): laga-läget läggs undan med steg, avbockningar och
-  // timrar kvar, och klockan nere till höger leder tillbaka (LagaKlocka).
-  const lagaMinimera = useExperiment('dev-mode');
+  // Minimera: laga-läget läggs undan med steg, avbockningar och timrar kvar,
+  // och klockan nere till höger leder tillbaka (LagaKlocka).
   const minimeradRef = useRef(false);
   // Frågan när man avslutar med timrar igång. Inne i laga-läget, inte via
   // ConfirmDialog: en modal ovanpå en modal syns inte på iOS.
@@ -233,6 +233,10 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
   const [egenTimerÖppen, setEgenTimerÖppen] = useState(false);
   const [egenMinuter, setEgenMinuter] = useState(5);
   const [egenNamn, setEgenNamn] = useState('');
+  // Android 14+: exakta larm är avstängda från början, så notisen för en timer
+  // kan komma minuter för sent när appen är stängd. Tipsas en gång, när den
+  // första timern startas (se plugins/withExactAlarm.js).
+  const [exaktTips, setExaktTips] = useState(false);
   // Namnen på de egna timrarna (nyckel → "Äggen"); stegens timrar har inga.
   const [timerNamn, setTimerNamn] = useState<Map<number, string>>(new Map());
   // Arkens nederkant i laga-läget hålls fri från hemindikatorn.
@@ -758,7 +762,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
     .filter(l => l.recipeId !== recipe?.id)
     .flatMap(l => l.timers.map(t => ({ l, t })))
     .sort((a, b) => a.t.endsAt - b.t.endsAt);
-  const harTimrar = timrar.size > 0 || (cookMode && lagaMinimera && andraReceptsTimrar.length > 0);
+  const harTimrar = timrar.size > 0 || (cookMode && andraReceptsTimrar.length > 0);
   const andraLagningar = pågåendeLagningar.filter(l => l.recipeId !== recipe?.id);
   // Klockan inne i laga-läget och dess ark "Pågående lagning".
   const [översiktÖppen, setÖversiktÖppen] = useState(false);
@@ -775,7 +779,6 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
   // och pling, en gång per timer. Minimerade timrar larmar LagaKlocka.
   const larmadeTimrar = useRef(new Set<string>());
   useEffect(() => {
-    if (!lagaMinimera) return;
     for (const [steg, slut] of timrar) {
       const nyckel = `${steg}:${slut}`;
       if (slut <= timerNu && slut > timerNu - LARM_FÖNSTER_MS && !larmadeTimrar.current.has(nyckel)) {
@@ -786,13 +789,20 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
         if (notis) Notifications.cancelScheduledNotificationAsync(notis).catch(() => {});
       }
     }
-  }, [timerNu, timrar, lagaMinimera]);
+  }, [timerNu, timrar]);
 
 
   /** Startar nedräkning på steget och schemalägger notisen som faktiskt larmar.
    *  Utan notis vore timern bara en siffra man måste stå och titta på. */
   const startaTimer = useCallback(async (steg: number, minuter: number, namn: string | null = null) => {
     setTimrar(prev => new Map(prev).set(steg, Date.now() + minuter * 60_000));
+    if (Platform.OS === 'android' && typeof Platform.Version === 'number' && Platform.Version >= 34) {
+      SecureStore.getItemAsync(EXAKT_TIPS_NYCKEL).then(v => {
+        if (v === '1') return;
+        setExaktTips(true);
+        SecureStore.setItemAsync(EXAKT_TIPS_NYCKEL, '1').catch(() => {});
+      }).catch(() => {});
+    }
     if (namn) setTimerNamn(prev => new Map(prev).set(steg, namn));
     try {
       const { status } = await Notifications.getPermissionsAsync();
@@ -889,7 +899,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
   /** Avsluta: med timrar igång (dev-läget) frågas först — de skulle annars
    *  försvinna utan förvarning. */
   function avslutaLaga() {
-    if (lagaMinimera && timrar.size > 0) { setAvslutaFråga(true); return; }
+    if (timrar.size > 0) { setAvslutaFråga(true); return; }
     setCookMode(false);
   }
 
@@ -2150,9 +2160,8 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
         const ingredMaxH = cookSplitH > 0
           ? Math.max(Math.min(COOK_INGRED_MIN_H, cookSplitH * 0.4), cookSplitH - cookStegH)
           : COOK_INGRED_MIN_H;
-        const andraTimrar = [...timrar.keys()].filter(i => i !== cookStep).sort((a, b) => a - b);
         return (
-          <Modal visible={cookMode} transparent={false} animationType="slide" onRequestClose={() => (lagaMinimera ? minimeraLaga() : setCookMode(false))}>
+          <Modal visible={cookMode} transparent={false} animationType="slide" onRequestClose={minimeraLaga}>
             {/* Egen provider: en Modal är en egen rotvy, och på iOS gav
                 SafeAreaView där inget avstånd — rubriken hamnade under klockan. */}
             <SafeAreaProvider>
@@ -2160,11 +2169,9 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
             <SafeAreaView style={s.cookContainer}>
               <View style={s.cookHeader}>
                 <Text style={s.cookRecipeTitle} numberOfLines={1}>{recipe.title}</Text>
-                {lagaMinimera && (
-                  <Pressable onPress={minimeraLaga} style={s.cookClose} accessibilityLabel={str.detail.cookMinimize}>
-                    <Ionicons name="chevron-down" size={24} color={c.textMuted} />
-                  </Pressable>
-                )}
+                <Pressable onPress={minimeraLaga} style={s.cookClose} accessibilityLabel={str.detail.cookMinimize}>
+                  <Ionicons name="chevron-down" size={24} color={c.textMuted} />
+                </Pressable>
                 <Pressable onPress={avslutaLaga} style={s.cookClose} accessibilityLabel={str.detail.cookClose}>
                   <Ionicons name="close" size={24} color={c.textMuted} />
                 </Pressable>
@@ -2249,65 +2256,12 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
                   showsVerticalScrollIndicator={false}
                 >
                   <View style={s.cookStegInnehall} onLayout={e => setCookStegH(e.nativeEvent.layout.height + COOK_BODY_PAD_V * 2)}>
-                  {!lagaMinimera && andraTimrar.length > 0 && (
-                    <View style={s.cookAndraTimrar}>
-                      {andraTimrar.map(i => {
-                        const kvar = timerKvar(i);
-                        const tid = kvar <= 0 ? str.detail.cookTimerKlar : formateraNedräkning(kvar);
-                        // En egen timer hör inte till något steg: ett tryck stoppar den.
-                        const egen = ärEgenTimer(i);
-                        return (
-                          <Pressable
-                            key={i}
-                            style={[s.cookAndraTimer, kvar <= 0 && s.cookAndraTimerKlar]}
-                            onPress={() => (egen ? stoppaTimer(i) : setCookStep(i))}
-                            accessibilityRole="button"
-                            accessibilityLabel={egen ? str.detail.cookCustomStopA11y : str.detail.cookTimerAnnatStegA11y(i + 1)}
-                          >
-                            <Ionicons name="timer-outline" size={14} color={kvar <= 0 ? '#fff' : c.primary} />
-                            <Text style={[s.cookAndraTimerText, kvar <= 0 && s.cookTimerTextAktiv]}>
-                              {egen ? str.detail.cookCustomChip(timerNamn.get(i) ?? null, tid) : str.detail.cookTimerAnnatSteg(i + 1, tid)}
-                            </Text>
-                            {egen && <Ionicons name="close" size={14} color={kvar <= 0 ? '#fff' : c.primary} />}
-                          </Pressable>
-                        );
-                      })}
-                    </View>
-                  )}
                   <Text style={s.cookStepLabel}>{str.detail.cookStep(cookStep + 1, steps.length)}</Text>
                   <Text style={s.cookStepText}>{step}</Text>
-                  {!lagaMinimera && stegMinuter !== null && (() => {
-                    const igång = timrar.has(cookStep);
-                    const kvar = timerKvar(cookStep);
-                    return (
-                      <Pressable
-                        style={[s.cookTimer, igång && s.cookTimerAktiv]}
-                        onPress={() => (igång ? stoppaTimer(cookStep) : startaTimer(cookStep, stegMinuter))}
-                        accessibilityRole="button"
-                        accessibilityLabel={igång
-                          ? str.detail.cookTimerStopp
-                          : str.detail.cookTimerStart(formateraTidsetikett(stegMinuter))}
-                      >
-                        <Ionicons
-                          name={igång ? 'stop-circle-outline' : 'timer-outline'}
-                          size={20}
-                          color={igång ? '#fff' : c.primary}
-                        />
-                        <Text style={[s.cookTimerText, igång && s.cookTimerTextAktiv]}>
-                          {!igång
-                            ? formateraTidsetikett(stegMinuter)
-                            : kvar <= 0
-                              ? str.detail.cookTimerKlar
-                              : formateraNedräkning(kvar)}
-                        </Text>
-                      </Pressable>
-                    );
-                  })()}
-                  {/* Dev-läget: under steget stegets egen timer och en egen.
-                      Övriga timrar (andra steg, andra rätter) ligger i klockan
-                      nere till höger. Bara krysset stoppar en timer. */}
-                  {lagaMinimera && (
-                    <View style={s.cookTimerYta}>
+                  {/* Under steget: stegets egen timer och en egen. Övriga
+                      timrar (andra steg, andra rätter) ligger i klockan nere
+                      till höger. Bara krysset stoppar en timer. */}
+                  <View style={s.cookTimerYta}>
                       {stegMinuter !== null && (timrar.has(cookStep) ? (() => {
                         const kvar = timerKvar(cookStep);
                         return (
@@ -2349,8 +2303,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
                       </Pressable>
                     );
                   })()}
-                    </View>
-                  )}
+                  </View>
                   </View>
                 </ScrollView>
               </View>
@@ -2379,7 +2332,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
             {/* Klockan nere till höger även här, ovanför bläddringsknapparna:
                 alla timrar — det här receptets och andra minimerade — nås via
                 den. Arket ritas inne i laga-läget (modal på modal syns inte på iOS). */}
-            {lagaMinimera && (timrar.size > 0 || andraLagningar.length > 0) && !översiktÖppen && !avslutaFråga && !egenTimerÖppen && (() => {
+            {(timrar.size > 0 || andraLagningar.length > 0) && !översiktÖppen && !avslutaFråga && !egenTimerÖppen && (() => {
               const slut = [...timrar.values(), ...andraReceptsTimrar.map(x => x.t.endsAt)];
               const kvarS = slut.length ? Math.max(0, (Math.min(...slut) - timerNu) / 1000) : null;
               return (
@@ -2439,6 +2392,20 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
                   </Pressable>
                   <Pressable style={s.cookFrågaKnapp} onPress={() => setAvslutaFråga(false)}>
                     <Text style={[s.cookFrågaKnappText, s.cookFrågaKnappTextAvbryt]}>{common.actions.cancel}</Text>
+                  </Pressable>
+                </Pressable>
+              </Pressable>
+            )}
+            {exaktTips && !avslutaFråga && !egenTimerÖppen && (
+              <Pressable style={s.cookFrågaBakgrund} onPress={() => setExaktTips(false)}>
+                <Pressable style={[s.cookFrågaArk, { paddingBottom: insets.bottom + 16 }]} onPress={() => {}}>
+                  <Text style={s.cookFrågaTitel}>{str.detail.cookExactTitle}</Text>
+                  <Text style={s.cookFrågaText}>{str.detail.cookExactMessage}</Text>
+                  <Pressable style={[s.cookFrågaKnapp, s.cookFrågaPrimar]} onPress={() => { setExaktTips(false); Linking.openSettings().catch(() => {}); }}>
+                    <Text style={[s.cookFrågaKnappText, s.cookFrågaKnappTextPrimar]}>{str.detail.cookExactOpen}</Text>
+                  </Pressable>
+                  <Pressable style={s.cookFrågaKnapp} onPress={() => setExaktTips(false)}>
+                    <Text style={[s.cookFrågaKnappText, s.cookFrågaKnappTextAvbryt]}>{str.detail.cookExactLater}</Text>
                   </Pressable>
                 </Pressable>
               </Pressable>
@@ -2588,6 +2555,8 @@ function medLitetBrak(text: string, brakStil: TextStyle): ReactNode {
 /** Bara mängd + enhet ("300 g"), för receptvyns mängdkolumn. Tom sträng om
  *  ingrediensen saknar mängd ("salt"). visaOriginal=false (default) räknar om
  *  amerikanska enheter till svenska; true visar källans mängd orörd. */
+const EXAKT_TIPS_NYCKEL = 'seen-exact-alarm-tip';
+
 /** Mängdfältets text: "13", "ca 13", "3–4", "ev. 1", "ev.". */
 function mängdText(quantity: number | null, min: number | null, qualifier: RecipeIngredient['qualifier'] | null): string {
   const tal = (n: number) => String(n).replace('.', ',');

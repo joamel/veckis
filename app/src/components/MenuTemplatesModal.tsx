@@ -11,7 +11,6 @@ import { useApiClient, type MenuTemplate } from '../api/client';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { shareTemplate } from '../lib/shareWeekMenu';
-import { useExperiment } from '../lib/experiments';
 import { components as str, common } from '../lib/svenska';
 
 const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
@@ -72,7 +71,6 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
     }
   }
 
-  const devMode = useExperiment('dev-mode');
   // Mallen som visar sina rätter (bara en åt gången).
   const [openId, setOpenId] = useState<string | null>(null);
   const sortedItems = (tpl: MenuTemplate) =>
@@ -189,7 +187,7 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
                 )}
                 {/* Dela (som text) bara i dev-läge: mottagaren kan inte göra
                     något med den i Handlis än. */}
-                {devMode && <Pressable style={s.tplShare} onPress={() => shareTemplate(tpl)} hitSlop={8} accessibilityRole="button" accessibilityLabel={str.menuTemplatesModal.shareA11y(tpl.name)}>
+                {<Pressable style={s.tplShare} onPress={() => shareTemplate(tpl)} hitSlop={8} accessibilityRole="button" accessibilityLabel={str.menuTemplatesModal.shareA11y(tpl.name)}>
                   <Ionicons name="share-outline" size={18} color={nyDesign ? ny.padYta : c.primary} />
                 </Pressable>}
                 <Pressable style={s.tplDelete} onPress={() => confirmDelete(tpl)} hitSlop={8} accessibilityRole="button" accessibilityLabel={str.menuTemplatesModal.deleteA11y(tpl.name)}>

@@ -899,6 +899,10 @@ export const recipes = {
     cookSheetNoTimers: 'Ingen timer igång',
     cookSheetEnd:   'Avsluta lagningen',
     cookCustomTimer: 'Egen timer',
+    cookExactTitle:  'Larm i tid även när appen är stängd',
+    cookExactMessage: 'Android skickar annars timerns notis när det passar, ibland flera minuter för sent. Slå på "Alarm och påminnelser" för Handlis i inställningarna, så larmar timern på sekunden.',
+    cookExactOpen:   'Öppna inställningar',
+    cookExactLater:  'Inte nu',
     cookCustomTimerA11y: 'Starta en egen timer',
     cookCustomStart: 'Starta',
     cookCustomMinutes: (n: number) => `${n} min`,
@@ -1981,7 +1985,7 @@ export const admin = {
   sandbox: {
     'dev-mode': {
       title:       'Dev-läge',
-      description: 'Slår på det som är under utveckling, bara på den här telefonen: receptmenyn med tre val (länk och recept i ett fält), och förslag på kategoriordning ur så lite som en handling i butiken.',
+      description: 'Slår på det som är under utveckling, bara på den här telefonen. Just nu: förslag på kategoriordning ur så lite som en handling i butiken.',
     },
   },
   tabs: {
