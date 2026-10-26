@@ -781,6 +781,9 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
       if (slut <= timerNu && slut > timerNu - LARM_FÖNSTER_MS && !larmadeTimrar.current.has(nyckel)) {
         larmadeTimrar.current.add(nyckel);
         larmaTimer();
+        // Larmet ringer redan — en sen notis om samma timer vore bara brus.
+        const notis = timerNotisIds.current.get(steg);
+        if (notis) Notifications.cancelScheduledNotificationAsync(notis).catch(() => {});
       }
     }
   }, [timerNu, timrar, lagaMinimera]);

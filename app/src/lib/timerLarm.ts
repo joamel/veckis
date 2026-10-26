@@ -1,5 +1,5 @@
 /**
- * Larmet när en laga-timer slår om medan appen är öppen: tre pip och
+ * Larmet när en laga-timer slår om medan appen är öppen: pling och
  * vibration, om och om igen tills man reagerar — som en äggklocka. Förut
  * spelades avbockningsljudet "tre gånger" med samma spelare, men en spelare
  * som redan spelar startar inte om, så det blev ett enda kort pling.
@@ -26,7 +26,9 @@ let tidsgräns: ReturnType<typeof setTimeout> | null = null;
 
 async function pip() {
   try {
-    spelare ??= createAudioPlayer(require('../../assets/sounds/timer.wav'));
+    // Avbockningsljudet: ett eget pipljud provades (2026-10-26) men var
+    // inte lika trevligt.
+    spelare ??= createAudioPlayer(require('../../assets/sounds/check.wav'));
     spelare.volume = 1;
     // Spola tillbaka FÖRST och vänta in det: en spelare som står i slutet av
     // ljudet spelar annars ingenting.

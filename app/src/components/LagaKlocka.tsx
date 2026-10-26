@@ -188,6 +188,9 @@ export function LagaKlocka() {
         if (t.endsAt <= nu && t.endsAt > nu - LARM_FÖNSTER_MS && !larmade.current.has(nyckel)) {
           larmade.current.add(nyckel);
           larmaTimer();
+          // Appen är öppen och larmar själv: notisen kommer annars i efterhand
+          // (Android levererar schemalagda notiser med slack).
+          if (t.notisId) Notifications.cancelScheduledNotificationAsync(t.notisId).catch(() => {});
         }
       }
     }
