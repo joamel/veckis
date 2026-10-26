@@ -57,6 +57,7 @@ import { Murverk, murverkHojd } from '../../src/components/nydesign/Murverk';
 import { TagLabel, isFavoriteTag } from '../../src/components/TagLabel';
 import { orderTags, tagChips } from '../../src/lib/tagOrder';
 import { cleanPastedUrl, extractUrl, pastedLink, anyLink } from '../../src/lib/extractUrl';
+import { estimateImportSeconds, importStageTimes } from '../../src/lib/importEstimate';
 
 /** Var ett importerat recept kom ifrån — sparas på receptet (källa + Original-länk). */
 type ImportSource = { source: 'photo' | 'url_import' | 'ai_paste'; sourceUrl?: string | null };
@@ -903,8 +904,12 @@ export default function RecipesScreen() {
   useEffect(() => {
     setLoadingStep(0);
     if (!importBusy) return;
-    const timers = [3000, 7000].map((ms, i) => setTimeout(() => setLoadingStep(i + 1), ms));
+    // Texterna byts i takt med hur lång tid tolkningen väntas ta — en veckomeny
+    // tar fyra gånger så lång tid som en önskan.
+    const seconds = scraping ? estimateImportSeconds('link', url || pasteText) : estimateImportSeconds('paste', pasteText);
+    const timers = importStageTimes(seconds).map((ms, i) => setTimeout(() => setLoadingStep(i + 1), ms));
     return () => timers.forEach(clearTimeout);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [importBusy]);
   const loadingText = creating && !photoParsing ? str.createModal.loading.saving
     : photoParsing

@@ -735,11 +735,12 @@ export const recipes = {
       url:    'Hämta från länk',
       photo:  'Fota recept',
     },
-    // Laddningen med korgen. Byts efter hur lång tid som gått —
-    // servern säger inte vilket steg den är på, men ordningen stämmer.
+    // Laddningen med korgen. Byts efter hur lång tid som gått, i takt med en
+    // uppskattning ur textens längd (importEstimate.ts) — servern säger inte
+    // vilket steg den är på, men ordningen stämmer.
     loading: {
-      link:   ['Hämtar receptet…', 'Läser ingredienserna…', 'Nästan klart…'],
-      paste:  ['Läser texten…', 'Läser ingredienserna…', 'Nästan klart…'],
+      link:   ['Hämtar receptet…', 'Läser ingredienserna…', 'Nästan klart…', 'Det tar lite längre än vanligt…'],
+      paste:  ['Läser texten…', 'Läser ingredienserna…', 'Nästan klart…', 'Det tar lite längre än vanligt…'],
       saving: 'Sparar receptet…',
     },
     photo: {
