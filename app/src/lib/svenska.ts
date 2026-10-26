@@ -907,6 +907,8 @@ export const recipes = {
     cookCustomNamePlaceholder: 'Namn (valfritt), t.ex. Äggen',
     cookCustomNotisTitel: (namn: string) => `${namn} – tiden är ute`,
     cookTimerMax:    (n: number) => `Max ${n} timrar`,
+    cookOtherRecipeChip: (namn: string, tid: string) => `${namn} · ${tid}`,
+    cookOtherRecipeA11y: (rätt: string) => `Byt till ${rätt}`,
     cookCustomStopA11y: 'Stoppa den egna timern',
     cookStopTimerA11y: (steg: number) => `Stoppa timern på steg ${steg}`,
     cookPillA11y:   (rätt: string) => `Fortsätt laga ${rätt}`,
