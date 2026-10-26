@@ -2003,10 +2003,16 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
             ) : (
               <Text style={s.instructionsText}>{visadeInstruktioner}</Text>
             )}
-            <Pressable style={s.wideBtnSkog} onPress={() => öppnaLaga(recipe.id)} accessibilityLabel={str.detail.cookA11y}>
-              <Ionicons name="restaurant-outline" size={20} color={ny.lime} />
-              <Text style={s.wideBtnSkogText}>{str.detail.cookNow}</Text>
-            </Pressable>
+            {(() => {
+              // Pågår lagningen (minimerad) står det var man fortsätter.
+              const pågår = pågåendeLagningar.find(l => l.recipeId === recipe.id);
+              return (
+                <Pressable style={s.wideBtnSkog} onPress={() => öppnaLaga(recipe.id)} accessibilityLabel={pågår ? str.detail.cookContinue(pågår.step + 1) : str.detail.cookA11y}>
+                  <Ionicons name={pågår ? 'timer-outline' : 'restaurant-outline'} size={20} color={ny.lime} />
+                  <Text style={s.wideBtnSkogText}>{pågår ? str.detail.cookContinue(pågår.step + 1) : str.detail.cookNow}</Text>
+                </Pressable>
+              );
+            })()}
           </View>
         ) : null}
 
@@ -2220,7 +2226,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
                   showsVerticalScrollIndicator={false}
                 >
                   <View style={s.cookStegInnehall} onLayout={e => setCookStegH(e.nativeEvent.layout.height + COOK_BODY_PAD_V * 2)}>
-                  {andraTimrar.length > 0 && (
+                  {!lagaMinimera && andraTimrar.length > 0 && (
                     <View style={s.cookAndraTimrar}>
                       {andraTimrar.map(i => {
                         const kvar = timerKvar(i);
@@ -2247,7 +2253,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
                   )}
                   <Text style={s.cookStepLabel}>{str.detail.cookStep(cookStep + 1, steps.length)}</Text>
                   <Text style={s.cookStepText}>{step}</Text>
-                  {stegMinuter !== null && (() => {
+                  {!lagaMinimera && stegMinuter !== null && (() => {
                     const igång = timrar.has(cookStep);
                     const kvar = timerKvar(cookStep);
                     return (
@@ -2274,7 +2280,71 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
                       </Pressable>
                     );
                   })()}
-                  {lagaMinimera && (() => {
+                  {/* Dev-läget: alla timrar under steget, i samma ordning — stegets
+                      först, sedan andra stegs och egna, sist knappen för en ny.
+                      Bara krysset stoppar en timer; resten av chipet gör det
+                      inte, så ingen stängs av av misstag. */}
+                  {lagaMinimera && (
+                    <View style={s.cookTimerYta}>
+                      {stegMinuter !== null && (() => {
+                        const igång = timrar.has(cookStep);
+                        const kvar = timerKvar(cookStep);
+                        if (!igång) {
+                          return (
+                            <Pressable
+                              style={s.cookTimer}
+                              onPress={() => startaTimer(cookStep, stegMinuter)}
+                              accessibilityRole="button"
+                              accessibilityLabel={str.detail.cookTimerStart(formateraTidsetikett(stegMinuter))}
+                            >
+                              <Ionicons name="timer-outline" size={20} color={c.primary} />
+                              <Text style={s.cookTimerText}>{formateraTidsetikett(stegMinuter)}</Text>
+                            </Pressable>
+                          );
+                        }
+                        return (
+                          <View style={[s.cookTimer, s.cookTimerAktiv]}>
+                            <Ionicons name="timer-outline" size={20} color="#fff" />
+                            <Text style={[s.cookTimerText, s.cookTimerTextAktiv]}>
+                              {kvar <= 0 ? str.detail.cookTimerKlar : formateraNedräkning(kvar)}
+                            </Text>
+                            <Pressable onPress={() => stoppaTimer(cookStep)} hitSlop={10} accessibilityRole="button" accessibilityLabel={str.detail.cookTimerStopp}>
+                              <Ionicons name="close-circle" size={22} color="#fff" />
+                            </Pressable>
+                          </View>
+                        );
+                      })()}
+                      {andraTimrar.map(i => {
+                        const kvar = timerKvar(i);
+                        const tid = kvar <= 0 ? str.detail.cookTimerKlar : formateraNedräkning(kvar);
+                        const egen = ärEgenTimer(i);
+                        const etikett = egen ? str.detail.cookCustomChip(timerNamn.get(i) ?? null, tid) : str.detail.cookTimerAnnatSteg(i + 1, tid);
+                        const färg = kvar <= 0 ? '#fff' : c.primary;
+                        return (
+                          <View key={i} style={[s.cookTimer, kvar <= 0 && s.cookTimerAktiv]}>
+                            {/* Ett annat stegs timer: tryck på texten går till steget. */}
+                            <Pressable
+                              style={s.cookTimerEtikett}
+                              disabled={egen}
+                              onPress={() => setCookStep(i)}
+                              accessibilityRole={egen ? undefined : 'button'}
+                              accessibilityLabel={egen ? etikett : str.detail.cookTimerAnnatStegA11y(i + 1)}
+                            >
+                              <Ionicons name="timer-outline" size={20} color={färg} />
+                              <Text style={[s.cookTimerText, kvar <= 0 && s.cookTimerTextAktiv]}>{etikett}</Text>
+                            </Pressable>
+                            <Pressable
+                              onPress={() => stoppaTimer(i)}
+                              hitSlop={10}
+                              accessibilityRole="button"
+                              accessibilityLabel={egen ? str.detail.cookCustomStopA11y : str.detail.cookTimerStopp}
+                            >
+                              <Ionicons name="close-circle" size={22} color={färg} />
+                            </Pressable>
+                          </View>
+                        );
+                      })}
+                      {(() => {
                     const fullt = timrar.size >= MAX_TIMRAR_PER_RÄTT;
                     return (
                       <Pressable
@@ -2291,6 +2361,8 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
                       </Pressable>
                     );
                   })()}
+                    </View>
+                  )}
                   </View>
                 </ScrollView>
               </View>
@@ -2709,6 +2781,9 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   cookTimer: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 8, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 999, backgroundColor: c.surfaceSubtle, borderWidth: 1, borderColor: c.borderLight },
   cookTimerAktiv: { backgroundColor: c.primaryBtn, borderColor: c.primaryBtn },
   cookTimerFullt: { opacity: 0.6 },
+  // Dev-läget: alla timrar i en kolumn under steget.
+  cookTimerYta: { gap: 10, alignItems: 'flex-start' },
+  cookTimerEtikett: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   cookTimerText: { fontSize: 16, fontWeight: '700', color: c.primary },
   cookTimerTextAktiv: { color: '#fff' },
   cookStepLabel: { fontSize: 17, fontWeight: '700', color: c.primary },

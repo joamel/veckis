@@ -859,6 +859,7 @@ export const recipes = {
     ingQtyPlaceholder:  '1',
     cookA11y:       'Laga nu',
     cookNow:        'Laga nu',
+    cookContinue:   (steg: number) => `Fortsätt laga · steg ${steg}`,
     transferA11y:   'Lägg i inköpslista',
     showSourceA11y: 'Visa som i källan',
     showSwedishA11y:'Visa på svenska',
