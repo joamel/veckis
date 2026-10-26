@@ -23,7 +23,7 @@ const FFMPEG = req('ffmpeg-static');
 const font = f => pathToFileURL(join(ASSETS, 'fonts', f)).href;
 const ICON = pathToFileURL(join(ASSETS, 'icon.png')).href;
 
-const C = { skog: '#1d3b2e', lime: '#cde66b', mint: '#cfddb4', cream: '#f4f7ec', korall: '#f3a98f', persika: '#fbe3d3' };
+const C = { skog: '#1d3b2e', lime: '#cde66b', mint: '#cfddb4', cream: '#f4f7ec', korall: '#f3a98f', persika: '#fbe3d3', rosa: '#f6c9d4' };
 const VEG = {
   broccoli: `<circle cx="68" cy="72" r="38"/><circle cx="114" cy="54" r="42"/><circle cx="148" cy="94" r="34"/><circle cx="98" cy="102" r="38"/><circle cx="52" cy="112" r="26"/><path d="M82 122 C 86 140 84 165 78 186 Q 100 196 124 186 C 116 165 114 140 120 122 Z"/>`,
   pepper: `<path d="M52 72 C 34 96 36 150 62 176 C 78 192 94 182 100 172 C 106 182 122 192 138 176 C 164 150 166 96 148 72 C 128 56 116 66 100 63 C 84 66 72 56 52 72 Z"/><path d="M100 66 C 100 46 108 32 124 26" fill="none" stroke="currentColor" stroke-width="11" stroke-linecap="round"/>`,
@@ -54,13 +54,13 @@ const page = (bg, inner, H = 675) => `<!doctype html><html><head><meta charset="
 
 // --- Karusellen -------------------------------------------------------------
 const CAROUSEL = [
-  page(C.lime, `
+  page(C.rosa, `
     ${veg('broccoli', C.skog, 'width:120px;right:-20px;top:30px;transform:rotate(12deg)')}
     ${veg('pepper', C.skog, 'width:100px;left:-18px;bottom:40px;transform:rotate(-14deg)')}
     <div class="wrap">
       <div class="kick" style="color:${C.skog}">Söndag</div>
       <div class="hand" style="color:${C.skog};font-size:92px;margin-top:8px">Dags att<br>storhandla!</div>
-      <div class="sub" style="color:#2f5a44;max-width:360px">Så klarar du hela veckan på en enda tur till affären.</div>
+      <div class="sub" style="color:${C.skog};max-width:360px">Så klarar du hela veckan på en enda tur till affären.</div>
     </div>
     ${stamp('right:40px;bottom:60px;background:'+C.skog+';color:'+C.lime)}`),
   page(C.cream, `
@@ -78,17 +78,17 @@ const CAROUSEL = [
       ${[['Veckomenyn blir en inköpslista', 'med ett tryck'], ['Bocka bort det du har hemma', 'innan du går'], ['Hela hushållet lägger till', 'i samma lista'], ['Sorterad efter din butik', 'du går rakt igenom'], ['"Jag handlar"', 'så vet alla att du är där']].map(([t, d]) => `
         <div class="row" style="background:rgba(255,255,255,.07);color:#fff;padding:11px 16px;margin-top:8px"><span style="color:${C.lime};font-size:20px">✓</span><span>${t}<span style="display:block;font-size:13.5px;color:#b5c8ad">${d}</span></span></div>`).join('')}
     </div>`),
-  page(C.persika, `
-    ${veg('avocado', C.korall, 'width:120px;left:-26px;bottom:60px;transform:rotate(-16deg)', C.persika)}
-    ${veg('chili', C.korall, 'width:110px;right:-20px;top:40px;transform:rotate(10deg)')}
+  page(C.rosa, `
+    ${veg('avocado', C.skog, 'width:120px;left:-26px;bottom:60px;transform:rotate(-16deg)', C.rosa)}
+    ${veg('chili', C.skog, 'width:110px;right:-20px;top:40px;transform:rotate(10deg)')}
     <div class="wrap" style="align-items:center;text-align:center">
       <img src="${ICON}" style="width:84px;border-radius:20px;margin-bottom:18px">
       <div class="hand" style="color:${C.skog};font-size:66px">Trevlig<br>storhandling!</div>
-      <div class="sub" style="color:#7a4a38">Planera veckan i Handlis – gratis att använda.</div>
+      <div class="sub" style="color:${C.grön ?? '#2f5a44'}">Planera veckan i Handlis – gratis att använda.</div>
       <div class="btns"><div class="btn" style="background:${C.skog};color:${C.lime}">App Store</div><div class="btn" style="background:${C.skog};color:${C.lime}">Google Play</div></div>
-      <div style="font-weight:600;font-size:13px;color:#7a4a38;margin-top:14px">Länk i bion · handlis.app</div>
+      <div style="font-weight:600;font-size:13px;color:${C.skog};margin-top:14px">Länk i bion · handlis.app</div>
     </div>
-    ${stamp('left:46px;top:46px;transform:rotate(-7deg)')}`),
+    ${stamp('left:46px;top:46px;transform:rotate(-7deg);background:'+C.skog+';color:'+C.lime)}`),
 ];
 
 // --- Reelen ----------------------------------------------------------------
