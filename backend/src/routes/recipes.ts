@@ -18,6 +18,7 @@ import { stadaIngrediensrad } from '../lib/ingrediensrad';
 import { parseIngredientString } from '../lib/parseIngredientString';
 import { AMOUNT_QUALIFIERS, type AmountQualifier } from '@veckis/shared';
 import { withSections, htmlHeadingTexts } from '../lib/ingredientSections';
+import * as Sentry from '@sentry/node';
 import { uploadRecipeImage, deleteRecipeImage, type UploadResult } from '../lib/imageUpload';
 import { recipeAbuseLimiter, parseTextLimiter, aiDailyUserLimiter } from '../lib/rateLimits';
 import { safeFetch } from '../lib/ssrfGuard';
@@ -408,8 +409,14 @@ recipesRouter.post('/:recipeId/image', recipeAbuseLimiter, requireAuth, upload.s
     }
     res.json(updated);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Image upload failed';
-    res.status(500).json({ error: msg });
+    // Cloudinarys fel är inga Error-objekt ({ message, http_code }), så orsaken
+    // försvann förut och appen visade bara "Kunde inte ladda upp bilden".
+    // Fel nycklar (efter nyckelbytet 2026-10-22) ger t.ex. http_code 401.
+    const e = err as { message?: string; http_code?: number };
+    const msg = err instanceof Error ? err.message : e?.message ?? 'Image upload failed';
+    console.error('Recipe image upload failed:', e?.http_code ?? '', msg);
+    Sentry.captureException(err instanceof Error ? err : new Error(`Cloudinary: ${e?.http_code ?? ''} ${msg}`));
+    res.status(500).json({ error: 'Kunde inte spara bilden just nu. Försök igen senare.' });
   }
 }));
 
