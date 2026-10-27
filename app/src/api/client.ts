@@ -19,7 +19,7 @@ import type {
 } from '@veckis/shared';
 import { trackBackendRequest } from '../lib/backendWakeup';
 import { reportClientError } from '../lib/errorReport';
-import { Image } from 'react-native';
+import { Image, Platform } from 'react-native';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { common } from '../lib/svenska';
 import { passaInom, type Resize } from '../lib/bildstorlek';
@@ -543,21 +543,45 @@ export function useApiClient() {
       request<void>(`/api/recipes/${recipeId}`, { method: 'DELETE' }),
 
     uploadRecipeImage: async (recipeId: string, fileUri: string, mimeType = 'image/jpeg'): Promise<RecipeWithIngredients> => {
-      const form = new FormData();
-      // RN's FormData accepts the file blob descriptor object directly.
-      form.append('image', { uri: fileUri, name: 'recipe.jpg', type: mimeType } as unknown as Blob);
       const token = await getTokenRef.current();
-      const res = await fetch(`${BASE_URL}/api/recipes/${recipeId}/image`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` }, // let fetch set the multipart boundary
-        body: form,
-      });
-      if (!res.ok) {
-        let msg = `HTTP ${res.status}`;
-        try { const j = await res.json(); msg = (j as { error?: string }).error ?? msg; } catch { /* ignore */ }
-        throw new Error(msg);
+      const url = `${BASE_URL}/api/recipes/${recipeId}/image`;
+
+      // Webben: webbläsarens fetch och FormData, med bilden som en riktig Blob.
+      if ((Platform.OS as string) === 'web') {
+        const blob = await (await fetch(fileUri)).blob();
+        const form = new FormData();
+        form.append('image', blob, 'recipe.jpg');
+        const res = await fetch(url, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: form });
+        if (!res.ok) {
+          let msg = `HTTP ${res.status}`;
+          try { const j = await res.json(); msg = (j as { error?: string }).error ?? msg; } catch { /* ignore */ }
+          throw new Error(msg);
+        }
+        return res.json() as Promise<RecipeWithIngredients>;
       }
-      return res.json() as Promise<RecipeWithIngredients>;
+
+      // Native: XMLHttpRequest, inte fetch. Expo byter ut den globala fetch mot
+      // sin egen (expo/fetch), och den förstår inte React Natives filbilaga
+      // { uri, name, type } — uppladdningen föll med "Unsupported FormDataPart
+      // implementation" innan något skickades (iOS + Android, 2026-10-27).
+      // XMLHttpRequest är kvar som React Natives egen och läser filen från uri.
+      const form = new FormData();
+      form.append('image', { uri: fileUri, name: 'recipe.jpg', type: mimeType } as unknown as Blob);
+      return new Promise<RecipeWithIngredients>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', url);
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+        xhr.timeout = 60_000;
+        xhr.onload = () => {
+          let body: unknown = null;
+          try { body = JSON.parse(xhr.responseText); } catch { /* inte JSON */ }
+          if (xhr.status >= 200 && xhr.status < 300) resolve(body as RecipeWithIngredients);
+          else reject(new Error((body as { error?: string } | null)?.error ?? `HTTP ${xhr.status}`));
+        };
+        xhr.onerror = () => reject(new ApiError('Network request failed', null, true));
+        xhr.ontimeout = () => reject(new ApiError('Upload timed out', null, true));
+        xhr.send(form);
+      });
     },
     // recipes: alla recept som hittades (en Instagram-bildtext kan ha en hel
     // veckomeny). Toppnivån är det första — äldre backend skickar bara den.
