@@ -298,9 +298,11 @@ const makeStyles = (narrow: boolean) => StyleSheet.create({
   igHeading: { marginBottom: 12 },
   igBody: { fontSize: narrow ? 15 : 17, lineHeight: narrow ? 23 : 27, color: BRAND.inkMuted, textAlign: 'center' },
   // Tre i rad även på mobil — små, som ett utsnitt ur flödet.
-  igRad: { flexDirection: 'row', gap: narrow ? 8 : 20, justifyContent: 'center', marginTop: narrow ? 24 : 36, width: '100%', maxWidth: 820, alignSelf: 'center' },
-  igKort: { flex: 1, borderRadius: narrow ? 10 : 16, overflow: 'hidden', backgroundColor: BRAND.card, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },
-  igBild: { width: '100%', aspectRatio: 4 / 5 },
+  // alignItems: flex-start: en rad sträcker annars korten på höjden, och på
+  // webben följde bilden med i stället för sina proportioner (smala remsor).
+  igRad: { flexDirection: 'row', alignItems: 'flex-start', gap: narrow ? 8 : 20, justifyContent: 'center', marginTop: narrow ? 24 : 36, width: '100%', maxWidth: 820, alignSelf: 'center' },
+  igKort: { flex: 1, aspectRatio: 4 / 5, borderRadius: narrow ? 10 : 16, overflow: 'hidden', backgroundColor: BRAND.card, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },
+  igBild: { width: '100%', height: '100%' },
   igKnapp: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, alignSelf: 'center', backgroundColor: BRAND.terra, paddingHorizontal: 28, paddingVertical: 15, borderRadius: 12, marginTop: narrow ? 24 : 36, minWidth: narrow ? '100%' : 240 },
 
   faqSection: { paddingTop: 0 },
