@@ -390,6 +390,11 @@ export default function StoreDetailScreen() {
   // uppåt före. Strecket ritas därför under respektive över målraden.
   const dropLineStyle = catDragState && catHoverIndex !== null && catHoverIndex > catDragState.startIndex ? s.catRowDropAfter : s.catRowDropTarget;
   const onCatDragStart = useCallback((key: string, idx: number, absoluteY: number) => {
+    // Positionerna mättes när raderna ritades; har sidan skrollat sedan dess
+    // hamnar släppet fel (samma fel som i receptets ingredienslista).
+    for (const [k, ref] of Object.entries(catRowRefs.current)) {
+      ref?.measure((_x, _y, _w, h, _px, py) => { catRowLayouts.current[k] = { y: py, height: h }; });
+    }
     setCatDragState({ key, startIndex: idx, y: absoluteY });
     setCatHoverIndex(idx);
   }, []);

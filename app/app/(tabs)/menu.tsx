@@ -1108,6 +1108,10 @@ export default function MenuScreen() {
   }
 
   function onDragStart(item: WeekMenuItemWithRecipe, _x: number, y: number, touchOffsetY: number) {
+    // Dagarnas positioner kan vara inaktuella om listan skrollat sedan de mättes.
+    for (const [key, ref] of Object.entries(daySectionRefs.current)) {
+      ref?.measure((_x2, _y2, _w, h, _px, py) => { dayLayouts.current[key] = { y: py, height: h }; });
+    }
     const drag = { item, y, touchOffsetY };
     dragRef.current = drag;
     hoverRef.current = undefined;

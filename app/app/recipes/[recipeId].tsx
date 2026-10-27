@@ -1401,7 +1401,10 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
               onBlur={() => setTitleFocused(false)}
             />
             {!titleFocused && editTitle.length > 0 && (
-              <Text pointerEvents="none" numberOfLines={1} style={s.headerTitleOverlay}>{editTitle}</Text>
+              // Texten tar trycket: iOS skickar inga tryck till fältet under
+              // när det är osynligt (opacity 0) — titeln gick inte att ändra
+              // efter första sparningen (feedback 2026-10-27, iPhone).
+              <Text numberOfLines={1} style={s.headerTitleOverlay} onPress={() => titleInputRef.current?.focus()}>{editTitle}</Text>
             )}
           </View>
         ) : (
