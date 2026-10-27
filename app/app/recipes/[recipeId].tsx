@@ -35,6 +35,7 @@ import { minimeraLagning, återupptaLagning, avslutaLagning, useLagningar, EGEN_
 import { KlockKnapp, LagaÖversikt, stoppaMinimeradTimer } from '../../src/components/LagaKlocka';
 import { larmaTimer, stoppaLarm, LARM_FÖNSTER_MS } from '../../src/lib/timerLarm';
 import * as SecureStore from '../../src/lib/secureStorage';
+import { reportClientError } from '../../src/lib/errorReport';
 import { TidsSnurra, type Ankare } from '../../src/components/TidsSnurra';
 import { kvarvarandePåSteg } from '../../src/lib/cookIngredients';
 
@@ -1238,8 +1239,13 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
   async function pickAndUploadImage(source: 'library' | 'camera') {
     // Uppladdningen adresserar receptet via id, så den kräver ett sparat recept.
     if (!recipe || isNew) return;
+    // Vilket steg som föll följer med felrapporten: appen visar bara "Kunde
+    // inte ladda upp bilden", och när uppladdningen aldrig nådde servern
+    // (feedback 2026-10-27, iOS + Android) syntes ingenting i backendloggen.
+    let steg = 'behörighet';
     try {
       if (!(await ensureImagePermission(source))) return;
+      steg = 'väljare';
       // Ingen beskärning här: hela bilden laddas upp, och vilket utsnitt som
       // visas justeras efteråt genom att dra i bilden (imageFocusX/Y). Då
       // bevaras originalet, justeringen går att ändra om, och samma sätt
@@ -1250,16 +1256,19 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
         : await ImagePicker.launchImageLibraryAsync(val);
       if (result.canceled || !result.assets[0]) return;
       setUploadingImage(true);
+      steg = 'komprimering';
       const compressed = await ImageManipulator.manipulateAsync(
         result.assets[0].uri,
         [{ resize: { width: 1200 } }],
         { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG },
       );
+      steg = 'uppladdning';
       const updated = await client.uploadRecipeImage(recipe.id, compressed.uri);
       setRecipe(updated);
       setEditImage(updated.imageUrl ?? '');
       setEditFokus({ x: updated.imageFocusX, y: updated.imageFocusY, zoom: updated.imageZoom });
     } catch (e) {
+      reportClientError(e, { where: 'recipeImage.upload', steg, source });
       showError(e, str.errors.couldNotUpload);
     } finally {
       setUploadingImage(false);
