@@ -35,6 +35,7 @@ import { minimeraLagning, återupptaLagning, avslutaLagning, useLagningar, EGEN_
 import { KlockKnapp, LagaÖversikt, stoppaMinimeradTimer } from '../../src/components/LagaKlocka';
 import { larmaTimer, stoppaLarm, LARM_FÖNSTER_MS } from '../../src/lib/timerLarm';
 import * as SecureStore from '../../src/lib/secureStorage';
+import { flyttaRubrik } from '../../src/lib/flyttaRubrik';
 import { reportClientError } from '../../src/lib/errorReport';
 import { TidsSnurra, type Ankare } from '../../src/components/TidsSnurra';
 import { kvarvarandePåSteg } from '../../src/lib/cookIngredients';
@@ -279,7 +280,8 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
   // skärm-absoluta position, jämför mot fingrets Y under draget, och räknar
   // ut släpp-positionen EN gång från senast kända Y i stället för att lita på
   // en löpande "hover"-ref (bevisat instabilt i det tidigare fallet).
-  type IngDragState = { startIndex: number; startY: number; y: number };
+  // rubrik: det är underrubriken på startIndex som dras, inte raden.
+  type IngDragState = { startIndex: number; startY: number; y: number; rubrik?: boolean };
   const [ingDragState, setIngDragState] = useState<IngDragState | null>(null);
   const [ingHoverIndex, setIngHoverIndex] = useState<number | null>(null);
   // Fingret på ett draghandtag: sidan skrollar inte, så draget inte stjäls.
@@ -305,6 +307,13 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
     setIngDragState({ startIndex: idx, startY: absoluteY, y: absoluteY });
     setIngHoverIndex(idx);
   }, []);
+  const onRubrikDragStart = useCallback((idx: number, absoluteY: number) => {
+    for (const [i, ref] of Object.entries(ingRowRefs.current)) {
+      ref?.measure((_x, _y, _w, h, _px, py) => { ingRowLayouts.current[Number(i)] = { y: py, height: h }; });
+    }
+    setIngDragState({ startIndex: idx, startY: absoluteY, y: absoluteY, rubrik: true });
+    setIngHoverIndex(idx);
+  }, []);
   const onIngDragMove = useCallback((absoluteY: number) => {
     setIngDragState(prev => prev ? { ...prev, y: absoluteY } : null);
     setIngHoverIndex(ingIndexAtY(absoluteY));
@@ -313,7 +322,11 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
     setIngDragState(prev => {
       if (prev) {
         const target = ingIndexAtY(prev.y);
-        if (target !== null && target !== prev.startIndex) moveEditRow(prev.startIndex, target);
+        if (target !== null && target !== prev.startIndex) {
+          // Rubriken är en avdelare, se lib/flyttaRubrik.ts.
+          if (prev.rubrik) setEditIngredients(rader => flyttaRubrik(rader, prev.startIndex, target));
+          else moveEditRow(prev.startIndex, target);
+        }
       }
       return null;
     });
@@ -1774,7 +1787,10 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
               {editIngredients.map((row, idx) => (
                 <Fragment key={idx}>
                 {row.section !== null && (idx === 0 || editIngredients[idx - 1].section !== row.section) && (
-                  <View style={s.editSectionRow}>
+                  <View style={[
+                    s.editSectionRow,
+                    ingDragState?.rubrik && ingDragState.startIndex === idx && [s.ingEditRowDragging, { transform: [{ translateY: ingDragState.y - ingDragState.startY }] }],
+                  ]}>
                     <TextInput
                       style={[s.editInput, s.editSectionInput]}
                       placeholder={str.detail.sectionPlaceholder}
@@ -1790,13 +1806,20 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
                     <Pressable onPress={() => removeSection(idx)} style={s.editRemove} accessibilityRole="button" accessibilityLabel={str.detail.removeSection}>
                       <Ionicons name="close-circle" size={20} color={c.border} />
                     </Pressable>
+                    <IngredientDragHandle
+                      idx={idx}
+                      onGrip={setIngGrepp}
+                      onDragStart={onRubrikDragStart}
+                      onDragMove={onIngDragMove}
+                      onDragEnd={onIngDragEnd}
+                    />
                   </View>
                 )}
                 <View
                   ref={ref => measureIngRow(idx, ref)}
                   onLayout={() => measureIngRow(idx, null)}
                   style={[
-                    ingDragState?.startIndex === idx && [s.ingEditRowDragging, { transform: [{ translateY: ingDragState.y - ingDragState.startY }] }],
+                    ingDragState?.startIndex === idx && !ingDragState.rubrik && [s.ingEditRowDragging, { transform: [{ translateY: ingDragState.y - ingDragState.startY }] }],
                     ingHoverIndex === idx && ingDragState?.startIndex !== idx && s.ingEditRowDropTarget,
                   ]}
                 >
