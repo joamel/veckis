@@ -276,7 +276,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
   // skärm-absoluta position, jämför mot fingrets Y under draget, och räknar
   // ut släpp-positionen EN gång från senast kända Y i stället för att lita på
   // en löpande "hover"-ref (bevisat instabilt i det tidigare fallet).
-  type IngDragState = { startIndex: number; y: number };
+  type IngDragState = { startIndex: number; startY: number; y: number };
   const [ingDragState, setIngDragState] = useState<IngDragState | null>(null);
   const [ingHoverIndex, setIngHoverIndex] = useState<number | null>(null);
   const ingRowRefs = useRef<Record<number, View | null>>({});
@@ -293,7 +293,11 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
     return null;
   }, []);
   const onIngDragStart = useCallback((idx: number, absoluteY: number) => {
-    setIngDragState({ startIndex: idx, y: absoluteY });
+    // Sidan kan ha skrollat sedan raderna mättes — mät om innan släppet räknas.
+    for (const [i, ref] of Object.entries(ingRowRefs.current)) {
+      ref?.measure((_x, _y, _w, h, _px, py) => { ingRowLayouts.current[Number(i)] = { y: py, height: h }; });
+    }
+    setIngDragState({ startIndex: idx, startY: absoluteY, y: absoluteY });
     setIngHoverIndex(idx);
   }, []);
   const onIngDragMove = useCallback((absoluteY: number) => {
@@ -1429,6 +1433,8 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
           !editMode && pågåendeLagningar.length > 0 && { paddingBottom: 170 },
         ]}
         keyboardShouldPersistTaps="always"
+        // Låst medan en ingrediens dras, annars tar iOS över rörelsen som skroll.
+        scrollEnabled={!ingDragState}
         scrollEventThrottle={16}
         onScroll={e => { scrollOffsetY.current = e.nativeEvent.contentOffset.y; maybePulseTags(); }}
       >
@@ -1774,7 +1780,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
                   ref={ref => measureIngRow(idx, ref)}
                   onLayout={() => measureIngRow(idx, null)}
                   style={[
-                    ingDragState?.startIndex === idx && s.ingEditRowDragging,
+                    ingDragState?.startIndex === idx && [s.ingEditRowDragging, { transform: [{ translateY: ingDragState.y - ingDragState.startY }] }],
                     ingHoverIndex === idx && ingDragState?.startIndex !== idx && s.ingEditRowDropTarget,
                   ]}
                 >
@@ -1818,8 +1824,12 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
                           getRowRef(idx).qty?.focus();
                         }}
                       />
+                      {/* Texten man ser tar emot trycket och fokuserar fältet:
+                          iOS skickar inga tryck till en vy med opacity 0, så
+                          fältet under gick bara att nå med ett långt tryck
+                          (feedback 2026-10-27, iPhone). */}
                       {activeNameIdx !== idx && row.name.length > 0 && (
-                        <Text pointerEvents="none" numberOfLines={1} style={s.editInputNameOverlay}>{row.name}</Text>
+                        <Text numberOfLines={1} style={s.editInputNameOverlay} onPress={() => getRowRef(idx).name?.focus()}>{row.name}</Text>
                       )}
                     </View>
                     <TextInput
@@ -2714,7 +2724,8 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   editInputNameField: { flex: 1, padding: 0, fontSize: 14, textAlign: 'left', color: c.text },
   editInputNameOverlay: { position: 'absolute', left: 10, right: 10, top: 8, bottom: 8, fontSize: 14, color: c.text },
   editRemove: { padding: 2 },
-  ingEditRowDragging: { opacity: 0.4 },
+  // Raden som dras ligger ovanpå de andra och följer fingret.
+  ingEditRowDragging: { zIndex: 10, elevation: 6, opacity: 0.95, backgroundColor: c.surface, borderRadius: 8, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } },
   ingEditRowDropTarget: { borderTopWidth: 2, borderTopColor: nyD ? ny.skog : c.primary },
   addRowBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8 },
   addRowBtnRad: { flexDirection: 'row', gap: 20 },
