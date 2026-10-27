@@ -379,11 +379,19 @@ export default function RecipesScreen() {
       .then(h => setPinnedTags(h.pinnedRecipeTags ?? nästa))
       .catch(e => { setPinnedTags(föregående); showError(e, str.tags.pinFailed); });
   }, [householdId, pinnedTags, client, showToast, showError]);
-  const toggleTagFilter = (tag: string) => setActiveTags(prev => {
-    const next = new Set(prev);
-    if (next.has(tag)) next.delete(tag); else next.add(tag);
-    return next;
-  });
+  // Taggraden smalnar av när man filtrerar (taggar utan träffar döljs). Stod
+  // den skrollad långt åt höger hamnade vyn utanför det som var kvar, och hela
+  // raden såg tom ut — så den går tillbaka till början vid varje val.
+  const taggScrollRef = useRef<ScrollView>(null);
+  const tillTaggradensBörjan = () => requestAnimationFrame(() => taggScrollRef.current?.scrollTo({ x: 0, animated: true }));
+  const toggleTagFilter = (tag: string) => {
+    setActiveTags(prev => {
+      const next = new Set(prev);
+      if (next.has(tag)) next.delete(tag); else next.add(tag);
+      return next;
+    });
+    tillTaggradensBörjan();
+  };
 
   // Sökningen först, taggarna sedan — taggraden räknar på det sökningen gav.
   const searchedRecipes = useMemo(() => {
@@ -1109,6 +1117,7 @@ export default function RecipesScreen() {
   const nyTaggrad = allTags.length > 0 ? (
     <View style={s.nyTaggRad} ref={taggRadRef} collapsable={false}>
       <ScrollView
+        ref={taggScrollRef}
         horizontal
         showsHorizontalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -1136,7 +1145,7 @@ export default function RecipesScreen() {
         })}
       </ScrollView>
       {activeTags.size > 0 && (
-        <Pressable style={s.nyTaggClear} onPress={() => setActiveTags(new Set())} hitSlop={8} accessibilityRole="button">
+        <Pressable style={s.nyTaggClear} onPress={() => { setActiveTags(new Set()); tillTaggradensBörjan(); }} hitSlop={8} accessibilityRole="button">
           <Ionicons name="close-circle" size={20} color={ny.textDampad} />
         </Pressable>
       )}
@@ -1255,6 +1264,7 @@ export default function RecipesScreen() {
           {allTags.length > 0 && (
             <View style={s.tagFilterBar}>
               <ScrollView
+                ref={taggScrollRef}
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
@@ -1280,7 +1290,7 @@ export default function RecipesScreen() {
                 })}
               </ScrollView>
               {activeTags.size > 0 && (
-                <Pressable style={s.tagFilterClear} onPress={() => setActiveTags(new Set())} hitSlop={8}>
+                <Pressable style={s.tagFilterClear} onPress={() => { setActiveTags(new Set()); tillTaggradensBörjan(); }} hitSlop={8}>
                   <Ionicons name="close-circle" size={18} color={c.textFaint} />
                 </Pressable>
               )}
