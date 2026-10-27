@@ -1890,6 +1890,14 @@ export const storeButtons = {
 // för login-vägg. Beskriver appens syfte (krav för Googles OAuth-verifiering +
 // Google Play) och funkar som marknadsförings-front.
 export const landing = {
+  instagram: {
+    eyebrow: 'Följ oss på Instagram',
+    heading: 'Inspiration till veckomenyn',
+    body:    'Varje vecka lägger vi upp en färdig veckomeny med inköpslista, tips för storhandlingen och knep i Handlis som är lätta att missa.',
+    button:  'Följ @handlis.app',
+    postA11y: (vad: string) => `Instagram-inlägg: ${vad}. Öppnar Handlis på Instagram`,
+    posts: ['Veckans middagar är redan klara', 'Hinner inte handla?', 'Dags att storhandla'],
+  },
   brand:         'Handlis',
   nav: {
     signIn:      'Logga in',

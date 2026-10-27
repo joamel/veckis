@@ -22,6 +22,8 @@ const GA_ID = 'G-XJG4FKTTSD'; // GA4 Measurement ID (handlis.app web-stream)
 // Samma som src/lib/storeLinks.ts.
 const APP_STORE = 'https://apps.apple.com/se/app/handlis/id6819080577';
 const PLAY_STORE = 'https://play.google.com/store/apps/details?id=com.handlis.app&hl=sv';
+// Samma som INSTAGRAM_URL i src/lib/storeLinks.ts.
+const INSTAGRAM = 'https://www.instagram.com/handlis.app/';
 
 const META = `
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover" />
@@ -261,6 +263,10 @@ function staticLanding(l) {
       <section>
         <h2>${esc(l.features.heading)}</h2>
         ${features.map(f => `<h3>${esc(f.title)}</h3><p>${esc(f.body)}</p>`).join('\n        ')}
+      </section>
+      <section>
+        <h2>${esc(l.instagram.heading)}</h2>
+        <p>${esc(l.instagram.body)} <a href="${esc(INSTAGRAM)}">${esc(l.instagram.button)}</a></p>
       </section>
       <section>
         <h2>${esc(l.faq.heading)}</h2>

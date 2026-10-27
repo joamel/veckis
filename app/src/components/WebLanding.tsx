@@ -16,6 +16,13 @@ import { nyLjus as ny, nyFont } from '../lib/nyDesign';
 const LOGO = require('../../assets/icon.png');
 const BOARD = require('../../assets/koncept-board.webp'); // krittavle-illustration (1536x850, 3 boxar)
 const BOARD_RATIO = 1536 / 850;
+// Tre inlägg ur Instagram-flödet (app/store/instagram/v44), nedskalade.
+// Byts när det finns nyare — de visar stilen, inte en viss vecka.
+const IG_INLAGG = [
+  require('../../assets/landing/ig-veckomeny.jpg'),
+  require('../../assets/landing/ig-hinner-inte-handla.jpg'),
+  require('../../assets/landing/ig-storhandla.jpg'),
+];
 
 // Alias in på appens egen "skog & lime"-palett (nyDesign.ts) i stället för
 // en egen varumärkespalett — landningssidan såg tidigare ut som den GAMLA
@@ -119,6 +126,40 @@ export function WebLanding() {
           </View>
         </View>
       </View>
+
+      {/* Instagram — många besökare kommer hit; flödet ger en anledning att
+          komma tillbaka varje vecka även innan man laddat ned appen. */}
+      {INSTAGRAM_URL && (
+        <View style={s.igSection}>
+          <View style={s.sectionInner}>
+            <View style={s.igRubrik}>
+              <View style={s.igEyebrowRad}>
+                <Ionicons name="logo-instagram" size={18} color={BRAND.greenDark} />
+                <Text style={s.igEyebrow}>{str.instagram.eyebrow}</Text>
+              </View>
+              <Text style={[s.sectionHeading, s.igHeading]}>{str.instagram.heading}</Text>
+              <Text style={s.igBody}>{str.instagram.body}</Text>
+            </View>
+            <View style={s.igRad}>
+              {IG_INLAGG.map((bild, i) => (
+                <Pressable
+                  key={i}
+                  style={s.igKort}
+                  onPress={() => { void Linking.openURL(INSTAGRAM_URL!); }}
+                  accessibilityRole="link"
+                  accessibilityLabel={str.instagram.postA11y(str.instagram.posts[i])}
+                >
+                  <Image source={bild} style={s.igBild} resizeMode="cover" />
+                </Pressable>
+              ))}
+            </View>
+            <Pressable style={s.igKnapp} onPress={() => { void Linking.openURL(INSTAGRAM_URL!); }} accessibilityRole="link">
+              <Ionicons name="logo-instagram" size={20} color={ON_LIME} />
+              <Text style={s.ctaPrimaryText}>{str.instagram.button}</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
 
       {/* Vanliga frågor — synlig text för sökmotorerna, samma som i index.html */}
       <View style={[s.section, s.faqSection]}>
@@ -249,6 +290,18 @@ const makeStyles = (narrow: boolean) => StyleSheet.create({
   featureCard: { flex: narrow ? undefined : 1, backgroundColor: BRAND.card, borderRadius: 18, padding: 26, borderWidth: 1, borderColor: BRAND.line },
   featureTitle: { fontSize: 19, fontWeight: '800', color: BRAND.greenDark, marginBottom: 10 },
   featureBody: { fontSize: 15, lineHeight: 23, color: BRAND.inkMuted },
+
+  igSection: { paddingHorizontal: 20, paddingVertical: narrow ? 44 : 72, backgroundColor: BRAND.beige },
+  igRubrik: { alignItems: 'center', maxWidth: 620, alignSelf: 'center' },
+  igEyebrowRad: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+  igEyebrow: { fontSize: 13, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: BRAND.greenDark },
+  igHeading: { marginBottom: 12 },
+  igBody: { fontSize: narrow ? 15 : 17, lineHeight: narrow ? 23 : 27, color: BRAND.inkMuted, textAlign: 'center' },
+  // Tre i rad även på mobil — små, som ett utsnitt ur flödet.
+  igRad: { flexDirection: 'row', gap: narrow ? 8 : 20, justifyContent: 'center', marginTop: narrow ? 24 : 36, width: '100%', maxWidth: 820, alignSelf: 'center' },
+  igKort: { flex: 1, borderRadius: narrow ? 10 : 16, overflow: 'hidden', backgroundColor: BRAND.card, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },
+  igBild: { width: '100%', aspectRatio: 4 / 5 },
+  igKnapp: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, alignSelf: 'center', backgroundColor: BRAND.terra, paddingHorizontal: 28, paddingVertical: 15, borderRadius: 12, marginTop: narrow ? 24 : 36, minWidth: narrow ? '100%' : 240 },
 
   faqSection: { paddingTop: 0 },
   faqInner: { width: '100%', maxWidth: 720, alignSelf: 'center' },
