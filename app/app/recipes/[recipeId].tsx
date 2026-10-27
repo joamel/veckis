@@ -100,32 +100,34 @@ function makeDraftRecipe(householdId: string): RecipeWithIngredients {
 // Samma mönster som butikens kategori-drag (stores/[storeId].tsx): egen
 // komponent så gesten byggs via useMemo, keyad på stabila props, i stället
 // för att byggas om vid varje omrendering.
-function IngredientDragHandle({ idx, onDragStart, onDragMove, onDragEnd }: {
+function IngredientDragHandle({ idx, onGrip, onDragStart, onDragMove, onDragEnd }: {
   idx: number;
+  /** Fingret är på handtaget (true) eller har släppt (false). */
+  onGrip: (nere: boolean) => void;
   onDragStart: (idx: number, absoluteY: number) => void;
   onDragMove: (absoluteY: number) => void;
   onDragEnd: () => void;
 }) {
-  const { colors: c, ny } = useTheme();
+  const { colors: c } = useTheme();
+  // Handtaget är en egen kolumn längst ut till höger och bara till för att
+  // dra: där skrollar sidan inte alls, och draget startar direkt. Förut
+  // krävdes ett håll på 150 ms — det skulle skydda mot att ett skrollsvep
+  // över handtaget blev ett drag, men på iPhone hann sidans skroll ta över
+  // under tiden (raden blev grå, inget rörde sig), och på Android var det
+  // svårt att få tag. Skrollen låses redan när fingret sätts ned (onBegin),
+  // inte först när draget startat. Resten av raden skrollar som vanligt.
   const gesture = useMemo(() => Gesture.Pan()
-    .hitSlop(6)
-    // Ingredienslistan är TÄTARE packad än butikens kategorilista (fler
-    // handtag på en skärmyta man ofta scrollar), så ett snabbt scroll-svep
-    // som råkar starta exakt på handtaget kapades annars som ett drag i
-    // stället för att fortsätta som scroll (touchAction="none" gör att
-    // webbläsaren/OS:et aldrig hinner tolka det som scroll om Pan-gesten
-    // triggar direkt). Kräver ett kort håll innan draget "arm:as" — en snabb
-    // genomgående rörelse hinner då lämnas kvar åt scrollen, medan ett
-    // medvetet tryck-och-håll på handtaget fortfarande ger ett drag.
-    .activateAfterLongPress(150)
+    .minDistance(0)
+    .onBegin(() => { runOnJS(onGrip)(true); })
     .onStart(e => { runOnJS(onDragStart)(idx, e.absoluteY); })
     .onUpdate(e => { runOnJS(onDragMove)(e.absoluteY); })
-    .onFinalize(() => { runOnJS(onDragEnd)(); }),
-    [idx, onDragStart, onDragMove, onDragEnd]);
+    .onFinalize(() => { runOnJS(onDragEnd)(); runOnJS(onGrip)(false); }),
+    [idx, onGrip, onDragStart, onDragMove, onDragEnd]);
   return (
     <GestureDetector gesture={gesture} touchAction="none">
-      <View style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}>
-        <Ionicons name="reorder-two" size={22} color={c.textFaint} />
+      {/* 44 punkter: Apples minsta rekommenderade tryckyta. */}
+      <View style={{ width: 44, alignSelf: 'stretch', minHeight: 44, alignItems: 'center', justifyContent: 'center' }}>
+        <Ionicons name="reorder-two" size={24} color={c.textFaint} />
       </View>
     </GestureDetector>
   );
@@ -280,6 +282,8 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
   type IngDragState = { startIndex: number; startY: number; y: number };
   const [ingDragState, setIngDragState] = useState<IngDragState | null>(null);
   const [ingHoverIndex, setIngHoverIndex] = useState<number | null>(null);
+  // Fingret på ett draghandtag: sidan skrollar inte, så draget inte stjäls.
+  const [ingGrepp, setIngGrepp] = useState(false);
   const ingRowRefs = useRef<Record<number, View | null>>({});
   const ingRowLayouts = useRef<Record<number, { y: number; height: number }>>({});
   const measureIngRow = useCallback((idx: number, ref: View | null) => {
@@ -1446,7 +1450,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
         ]}
         keyboardShouldPersistTaps="always"
         // Låst medan en ingrediens dras, annars tar iOS över rörelsen som skroll.
-        scrollEnabled={!ingDragState}
+        scrollEnabled={!ingDragState && !ingGrepp}
         scrollEventThrottle={16}
         onScroll={e => { scrollOffsetY.current = e.nativeEvent.contentOffset.y; maybePulseTags(); }}
       >
@@ -1898,6 +1902,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
                     {editIngredients.length > 1 && (
                       <IngredientDragHandle
                         idx={idx}
+                        onGrip={setIngGrepp}
                         onDragStart={onIngDragStart}
                         onDragMove={onIngDragMove}
                         onDragEnd={onIngDragEnd}
