@@ -102,20 +102,6 @@ app.get('/healthz', (_req, res) => {
   res.json({ ok: true, commit: COMMIT, node: process.version });
 });
 
-// Visar anroparens EGNA proxy-headrar och vilken rate limit-nyckel de ger —
-// för att se utifrån hur Railways hopp ser ut (clientIp.ts). Inget annat än
-// det klienten själv skickat eller proxyn lagt till om just den klienten.
-app.get('/healthz/ip', (req, res) => {
-  res.json({
-    key: clientIp(req),
-    xff: req.headers['x-forwarded-for'] ?? null,
-    xRealIp: req.headers['x-real-ip'] ?? null,
-    expressIp: req.ip,
-    socket: req.socket.remoteAddress,
-    replica: (process.env.RAILWAY_REPLICA_ID ?? 'dev').substring(0, 8),
-  });
-});
-
 // Readiness — verifierar DB. 500:ar om DB:n är onåbar (för manuell diagnostik).
 app.get(
   '/health',

@@ -4,7 +4,8 @@ import { isIP } from 'node:net';
 /**
  * Klientens IP bakom Railways proxy — nyckeln för alla rate limits.
  *
- * Uppmätt 2026-10-28 via /healthz/ip: Railways kant SKRIVER ÖVER
+ * Uppmätt 2026-10-28 med en tillfällig endpoint som ekade headrarna
+ * (commit cde9205, borttagen efteråt): Railways kant SKRIVER ÖVER
  * X-Real-IP och X-Forwarded-For (påhittade värden från klienten försvinner),
  * och X-Forwarded-For blir "<klient>, <kantens publika adress>". Den sista
  * adressen delas alltså av alla användare — req.ip med `trust proxy = 1`
@@ -14,7 +15,8 @@ import { isIP } from 'node:net';
  * Därför X-Real-IP, som kanten sätter till klienten, i första hand och
  * första adressen i X-Forwarded-For i andra. Båda går att lita på ENDAST
  * för att kanten skriver över dem — byts plattform måste det mätas igen
- * (curl -H "X-Real-IP: 2.2.2.2" …/healthz/ip ska inte visa 2.2.2.2).
+ * (lägg tillbaka endpointen från cde9205; curl -H "X-Real-IP: 2.2.2.2" ska
+ * inte visa 2.2.2.2).
  */
 export function clientIp(req: IncomingMessage & { ip?: string }): string {
   const realIp = first(req.headers['x-real-ip']);
