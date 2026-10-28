@@ -17,10 +17,11 @@ const SH = Math.round(SW * 2224 / 1080);
 const S = SW / 1080;                // klippets px → skärmens CSS-px
 
 // Klippets tidslinje, uppmätt ur inspelningen (sekunder i klippet, px i 1080×2224).
-// Råklippet: statusraden bortskuren, kontakterna i delningsarken övermålade med
-// arkets färg och arkens glidanimationer bortklippta (där rör sig kontakterna).
+// Råklippet: statusraden bortskuren, kontaktraderna i delningsarken bortklippta
+// (arken blir kortare; inlägget bakom fylls i från bildrutan före, nedtonat) och
+// arkens glidanimationer bortklippta (där rör sig kontakterna).
 const TAPS = [
-  [3.85, 498, 1805], [5.05, 540, 1115], [7.0, 398, 1900], [8.15, 540, 1769],
+  [3.85, 498, 1805], [5.05, 540, 1565], [7.0, 398, 1900], [8.15, 540, 1769],
   [14.55, 540, 2035], [18.1, 540, 1845], [20.75, 405, 2100], [26.75, 432, 1382], [30.6, 243, 1841],
 ];
 const SWIPE = { t0: 1.35, t1: 1.75, y: 785, x0: 860, x1: 260 };
