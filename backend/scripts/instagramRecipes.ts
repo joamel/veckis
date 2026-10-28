@@ -20,7 +20,7 @@ async function main() {
   console.log('Bildtext:', [...caption].length, 'tecken');
   const recept = await parseRecipeTextWithAI(caption);
   console.log('Recept:', recept.length);
-  for (const r of recept) console.log(`- ${r.title} (${r.ingredients.length} ingredienser)`);
+  for (const r of recept) console.log(`- ${r.day ?? "—"} ${r.title} (${r.ingredients.length} ingredienser${r.instructions ? "" : ", INGA instruktioner"})`);
   process.exit(0);
 }
 void main();

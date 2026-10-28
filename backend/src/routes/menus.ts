@@ -291,6 +291,33 @@ menusRouter.post('/templates', requireAuth, requireHouseholdMember, asyncHandler
   res.status(201).json(template);
 }));
 
+// POST /api/menus/templates/from-recipes — en mall direkt av importerade recept
+// (t.ex. en veckomeny från Instagram), utan att först planera en vecka.
+menusRouter.post('/templates/from-recipes', requireAuth, requireHouseholdMember, asyncHandler(async (req, res) => {
+  const body = z.object({
+    householdId: z.string(),
+    name: z.string().trim().min(1).max(100),
+    items: z.array(z.object({ recipeId: z.string(), day: z.nativeEnum(WeekDay).nullable() })).min(1).max(30),
+  }).safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
+
+  // Bara hushållets egna recept — annars kunde en mall peka in i någon annans.
+  const ids = [...new Set(body.data.items.map(i => i.recipeId))];
+  const egna = await prisma.recipe.count({ where: { id: { in: ids }, householdId: body.data.householdId } });
+  if (egna !== ids.length) { res.status(400).json({ error: 'Okänt recept i mallen' }); return; }
+
+  const template = await prisma.menuTemplate.create({
+    data: {
+      householdId: body.data.householdId,
+      name: body.data.name,
+      createdBy: (req as AuthenticatedRequest).clerkUserId,
+      items: { create: body.data.items.map(i => ({ recipeId: i.recipeId, day: i.day })) },
+    },
+    include: { items: { include: { recipe: { select: { id: true, title: true } } } } },
+  });
+  res.status(201).json(template);
+}));
+
 // POST /api/menus/templates/:templateId/apply — create week menu items from a template
 menusRouter.post('/templates/:templateId/apply', requireAuth, asyncHandler(async (req, res) => {
   const body = z.object({

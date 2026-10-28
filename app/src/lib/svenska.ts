@@ -771,6 +771,20 @@ export const recipes = {
       multiCreatedOne:  (titel: string) => `${titel} skapades`,
       multiCreatedMany: (n: number) => `${n} recept skapades`,
       multiPartial:     (sparade: number, alla: number, fel: string) => `${sparade} av ${alla} recept sparades. Övriga gick inte att spara: ${fel}`,
+      // Ofullständiga recept förkryssas inte — ett tomt recept på veckomenyn är ett antiklimax.
+      multiIncomplete:  'Ofullständigt – saknar ingredienser eller instruktioner',
+      // Spara flera importerade recept som en veckomall (t.ex. en veckomeny från Instagram).
+      templateToggle:   'Spara som veckomall',
+      templateHint:     'Recepten hamnar på rätt dag när du lägger mallen på en vecka.',
+      templateNameLabel: 'Mallens namn – tryck för att ändra',
+      templateFromAccount: (konto: string) => `Veckomeny från ${konto}`,
+      templateDated:    (datum: string) => `Veckomeny ${datum}`,
+      templateSavedTitle: 'Veckomallen är sparad',
+      templateSavedMessage: (namn: string) => `Vill du lägga ”${namn}” på veckomenyn direkt?`,
+      templateNextWeek: (v: number) => `Nästa vecka (v.${v})`,
+      templateThisWeek: (v: number) => `Den här veckan (v.${v})`,
+      templateLater:    'Inte nu',
+      templateApplied:  (v: number) => `Vecka ${v} är planerad`,
     },
     // Dev-läget: ett fält för både länk och recept, tre val i menyn.
     combined: {

@@ -522,12 +522,14 @@ JSON-schema — ETT objekt per separat recept i texten:
       "instructions": "tillagningssteg numrerade på separata rader: \\"1. Gör X\\n2. Gör Y\\", null om inga steg finns",
       "servings": 4,
       "cookMinutes": 45,
-      "ingredients": [{ "name": "ingrediensnamn", "quantity": 2.5, "unit": "dl", "section": "Sås", "quantityMin": null, "qualifier": null }]
+      "ingredients": [{ "name": "ingrediensnamn", "quantity": 2.5, "unit": "dl", "section": "Sås", "quantityMin": null, "qualifier": null }],
+      "day": "mon"
     }
   ]
 }
 
 Regler:
+- day: står receptet under en veckodag i texten (en veckomeny: "MÅNDAG – …", "Tisdag:") är det den dagen som "mon", "tue", "wed", "thu", "fri", "sat" eller "sun". Annars null — gissa aldrig.
 - quantity är ett tal (float) eller null om ingen mängd anges
 - unit ska vara EN av: dl, l, liter, ml, cl, msk, tsk, krm, g, kg, st, knippe, näve, nypa, klyfta — eller null
 - Extrahera ALLA ingredienser och steg du ser, ignorera navigation, annonser och annat sidinnehåll
@@ -644,8 +646,11 @@ export function delaUppDataUrl(rå: string): Bild {
 
 type ReceptRå = {
   title?: unknown; description?: unknown; instructions?: unknown;
-  servings?: unknown; cookMinutes?: unknown; ingredients?: unknown;
+  servings?: unknown; cookMinutes?: unknown; ingredients?: unknown; day?: unknown;
 };
+
+const VECKODAGAR = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
+type Veckodag = typeof VECKODAGAR[number];
 
 /**
  * Normaliserar ett rått receptobjekt från modellen. Allt är osäkert tills det
@@ -684,6 +689,9 @@ function städaRecept(r: ReceptRå): ScrapedRecipe {
     imageUrl: null,
     servings: typeof r.servings === 'number' && r.servings >= 1 ? Math.round(r.servings) : 4,
     cookMinutes: städaMinuter(r.cookMinutes),
+    // Bara när texten själv angav dagen (veckomeny); används när recepten
+    // sparas som veckomall.
+    day: (VECKODAGAR as readonly unknown[]).includes(r.day) ? r.day as Veckodag : null,
     ingredients: Array.isArray(r.ingredients)
       ? r.ingredients
           .filter((i): i is { name: string; quantity: number | null; unit: string | null; section?: unknown; quantityMin?: unknown; qualifier?: unknown } => typeof (i as { name?: unknown })?.name === 'string' && (i as { name: string }).name.trim().length > 0)
@@ -841,6 +849,9 @@ ${BARA_RECEPT_REGEL}`,
 }));
 
 interface ScrapedRecipe {
+  day?: Veckodag | null;
+  /** Kontot bakom ett Instagram-inlägg ("@handlis.app") — appens förslag på mallnamn. */
+  sourceName?: string | null;
   title: string;
   description: string | null;
   imageUrl: string | null;
@@ -900,7 +911,9 @@ async function scrapeRecipe(url: string): Promise<ScrapedRecipe[]> {
       // Ingen bild: Instagrams bildlänkar är signerade och går ut, och deras
       // CDN nekar ofta hämtning utifrån — det blev "Kunde inte ladda bilden".
       // Hellre tomt, så att man kan lägga till en egen.
-      return recept.map(r => ({ ...r, imageUrl: null }));
+      // og:title är "Namn (@konto) • Instagram …".
+      const konto = caption.match(/\(@([\w.]{1,30})\)/)?.[1];
+      return recept.map(r => ({ ...r, imageUrl: null, sourceName: konto ? `@${konto}` : null }));
     } catch {
       throw new Error(INSTAGRAM_FEL);
     }

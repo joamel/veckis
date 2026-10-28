@@ -58,6 +58,7 @@ import { TagLabel, isFavoriteTag } from '../../src/components/TagLabel';
 import { orderTags, tagChips } from '../../src/lib/tagOrder';
 import { cleanPastedUrl, extractUrl, pastedLink, anyLink } from '../../src/lib/extractUrl';
 import { estimateImportSeconds, importStageTimes } from '../../src/lib/importEstimate';
+import { isCompleteRecipe, looksLikeWeekMenu, suggestTemplateName } from '../../src/lib/importTemplate';
 
 /** Var ett importerat recept kom ifrån — sparas på receptet (källa + Original-länk). */
 type ImportSource = { source: 'photo' | 'url_import' | 'ai_paste'; sourceUrl?: string | null };
@@ -506,6 +507,9 @@ export default function RecipesScreen() {
   const [flerRecept, setFlerRecept] = useState<TolkatRecept[] | null>(null);
   // Var de flera recepten kom ifrån, så att de sparas med rätt källa.
   const flerKallaRef = useRef<ImportSource>({ source: 'photo' });
+  // "Spara som veckomall" i samma ark — förkryssat när texten var en veckomeny.
+  const [sparaMall, setSparaMall] = useState(false);
+  const [mallNamn, setMallNamn] = useState('');
   const [valdaRecept, setValdaRecept] = useState<Set<number>>(new Set());
   const [photoParsing, setPhotoParsing] = useState(false);
   const [photoLoadingStage, setPhotoLoadingStage] = useState<'reading' | 'analyzing' | 'creating' | null>(null);
@@ -579,7 +583,7 @@ export default function RecipesScreen() {
       // En länk kan rymma flera recept (t.ex. ett Instagram-inlägg med en hel
       // veckomeny i bildtexten). Då får man välja, precis som vid foto.
       if ((scraped.recipes?.length ?? 0) > 1) {
-        visaFlerReceptVal(scraped.recipes!, { source: 'url_import', sourceUrl: link });
+        visaFlerReceptVal(scraped.recipes!, { source: 'url_import', sourceUrl: link }, link);
         return;
       }
       setCreating(true);
@@ -633,7 +637,7 @@ export default function RecipesScreen() {
       const parsed = await client.parseRecipeText(pasteText.trim());
       // Delat från Instagram kommer ofta som text (bildtexten), inte som länk.
       if ((parsed.recipes?.length ?? 0) > 1) {
-        visaFlerReceptVal(parsed.recipes!, { source: 'ai_paste', sourceUrl: anyLink(pasteText) });
+        visaFlerReceptVal(parsed.recipes!, { source: 'ai_paste', sourceUrl: anyLink(pasteText) }, pasteText);
         return;
       }
       const usedTitle = title.trim() || parsed.title;
@@ -762,16 +766,43 @@ export default function RecipesScreen() {
   // överförs till inköpslistan, och det skalar när uppslaget innehåller fler än
   // två. Allt förmarkerat — att spara alla är det vanliga, att välja bort
   // undantaget.
-  function visaFlerReceptVal(funna: TolkatRecept[], kalla: ImportSource = { source: 'photo' }) {
+  function visaFlerReceptVal(funna: TolkatRecept[], kalla: ImportSource = { source: 'photo' }, text = '') {
     flerKallaRef.current = kalla;
     setFlerRecept(funna);
-    setValdaRecept(new Set(funna.map((_, i) => i)));
+    // Ofullständiga (utan ingredienser eller instruktioner) förkryssas inte.
+    setValdaRecept(new Set(funna.flatMap((r, i) => isCompleteRecipe(r) ? [i] : [])));
+    setSparaMall(looksLikeWeekMenu(funna));
+    setMallNamn(suggestTemplateName(funna[0]?.sourceName, text, new Date()));
+  }
+
+  // Efter en sparad mall: lägg den på en vecka direkt — då går man från ett
+  // Instagram-inlägg till en planerad vecka utan att leta upp recepten igen.
+  function erbjudVecka(mallId: string, namn: string) {
+    const denna = getISOWeek(new Date());
+    const nasta = getISOWeek(new Date(Date.now() + 7 * 24 * 3600 * 1000));
+    const lagg = async (v: { weekYear: number; weekNumber: number }) => {
+      try {
+        await client.applyMenuTemplate(mallId, v);
+        showToast(str.createModal.photo.templateApplied(v.weekNumber), 'success');
+      } catch (err) {
+        showError(err, str.errors.generic);
+      }
+    };
+    confirm({
+      title: str.createModal.photo.templateSavedTitle,
+      message: str.createModal.photo.templateSavedMessage(namn),
+      buttons: [
+        { label: str.createModal.photo.templateNextWeek(nasta.weekNumber), onPress: () => { void lagg(nasta); } },
+        { label: str.createModal.photo.templateThisWeek(denna.weekNumber), onPress: () => { void lagg(denna); } },
+        { label: str.createModal.photo.templateLater, style: 'cancel' },
+      ],
+    });
   }
 
   // Skapas i följd, inte parallellt: backend deduplicerar muterande anrop på
   // modulnivå, och två samtidiga createRecipe med olika innehåll är dessutom
   // svårare att felsöka när ett av dem fallerar.
-  async function skapaFlera(funna: TolkatRecept[]) {
+  async function skapaFlera(funna: TolkatRecept[], mall: string | null = null) {
     setCreating(true);
     try {
       const skapade = [];
@@ -792,6 +823,21 @@ export default function RecipesScreen() {
         }
       }
       stangSkapaSheet();
+      // Mallen får bara de recept som faktiskt sparades, med dagen ur texten.
+      if (mall && householdId && skapade.length > 0) {
+        try {
+          const t = await client.createMenuTemplateFromRecipes({
+            householdId,
+            name: mall,
+            items: skapade.map((r, i) => ({ recipeId: r.id, day: funna[i].day ?? null })),
+          });
+          showToast(str.createModal.photo.multiCreatedMany(skapade.length), 'success');
+          erbjudVecka(t.id, t.name);
+          return;
+        } catch (err) {
+          showError(err, str.errors.generic);
+        }
+      }
       showToast(skapade.length === 1
         ? str.createModal.photo.multiCreatedOne(skapade[0].title)
         : str.createModal.photo.multiCreatedMany(skapade.length), 'success');
@@ -1386,11 +1432,31 @@ export default function RecipesScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={s.multiTitle} numberOfLines={2}>{rec.title}</Text>
                 <Text style={s.multiSub}>{str.createModal.photo.multiSummary(rec.ingredients.length)}</Text>
+                {!isCompleteRecipe(rec) && <Text style={[s.multiSub, { color: c.danger }]}>{str.createModal.photo.multiIncomplete}</Text>}
               </View>
             </Pressable>
           );
         })}
         </ScrollView>
+
+        {(flerRecept?.length ?? 0) > 1 && (
+          <View style={{ marginTop: 8 }}>
+            <Pressable style={[s.multiRow, sparaMall && s.multiRowActive]} onPress={() => setSparaMall(v => !v)} accessibilityRole="checkbox" accessibilityState={{ checked: sparaMall }}>
+              <Ionicons name={sparaMall ? 'checkbox' : 'square-outline'} size={22} color={sparaMall ? c.primary : c.textFaint} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.multiTitle}>{str.createModal.photo.templateToggle}</Text>
+                <Text style={s.multiSub}>{str.createModal.photo.templateHint}</Text>
+              </View>
+              <Ionicons name="calendar-outline" size={20} color={c.textFaint} />
+            </Pressable>
+            {sparaMall && (
+              <View style={{ marginBottom: 6 }}>
+                <Text style={[s.multiSub, { marginBottom: 4 }]}>{str.createModal.photo.templateNameLabel}</Text>
+                <ClearableInput style={s.input} value={mallNamn} onChangeText={setMallNamn} maxLength={100} returnKeyType="done" />
+              </View>
+            )}
+          </View>
+        )}
 
         <Pressable
           style={[s.button, s.buttonRow, valdaRecept.size === 0 && s.buttonDisabled]}
@@ -1398,7 +1464,7 @@ export default function RecipesScreen() {
           onPress={() => {
             const valda = (flerRecept ?? []).filter((_, idx) => valdaRecept.has(idx));
             setFlerRecept(null);
-            void skapaFlera(valda);
+            void skapaFlera(valda, sparaMall && mallNamn.trim() ? mallNamn.trim() : null);
           }}
         >
           {creating

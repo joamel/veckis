@@ -25,7 +25,7 @@ import { common } from '../lib/svenska';
 import { passaInom, type Resize } from '../lib/bildstorlek';
 
 /** Ett recept som tolkats ur en länk, en text eller ett foto. */
-export type ImportedRecipe = { title: string; description: string | null; imageUrl: string | null; instructions: string | null; servings: number; cookMinutes?: number | null; ingredients: Array<{ name: string; quantity: number | null; unit: string | null; originalName?: string | null; section?: string | null; quantityMin?: number | null; qualifier?: AmountQualifier | null }> };
+export type ImportedRecipe = { day?: WeekDay | null; sourceName?: string | null; title: string; description: string | null; imageUrl: string | null; instructions: string | null; servings: number; cookMinutes?: number | null; ingredients: Array<{ name: string; quantity: number | null; unit: string | null; originalName?: string | null; section?: string | null; quantityMin?: number | null; qualifier?: AmountQualifier | null }> };
 export type ImportedRecipes = ImportedRecipe & { recipes?: ImportedRecipe[] };
 
 /**
@@ -708,6 +708,10 @@ export function useApiClient() {
 
     saveMenuTemplate: (data: { householdId: string; name: string; weekYear: number; weekNumber: number }) =>
       request<MenuTemplate>('/api/menus/templates', { method: 'POST', body: JSON.stringify(data) }),
+
+    // En mall direkt av importerade recept (t.ex. en veckomeny från Instagram).
+    createMenuTemplateFromRecipes: (data: { householdId: string; name: string; items: { recipeId: string; day: WeekDay | null }[] }) =>
+      request<MenuTemplate>('/api/menus/templates/from-recipes', { method: 'POST', body: JSON.stringify(data) }),
 
     applyMenuTemplate: (templateId: string, data: { weekYear: number; weekNumber: number; overwrite?: boolean }) =>
       request<{ applied: number }>(`/api/menus/templates/${templateId}/apply`, { method: 'POST', body: JSON.stringify(data) }),
