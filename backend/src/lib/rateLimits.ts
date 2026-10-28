@@ -10,6 +10,7 @@
 import rateLimit, { type RateLimitRequestHandler } from 'express-rate-limit';
 import type { Request, Response, NextFunction } from 'express';
 import type { AuthenticatedRequest } from '../middleware/auth';
+import { clientIp } from './clientIp';
 
 const HOUR = 60 * 60 * 1000;
 
@@ -17,6 +18,7 @@ function build(maxPerHour: number, message: string): RateLimitRequestHandler {
   return rateLimit({
     windowMs: HOUR,
     max: maxPerHour,
+    keyGenerator: clientIp,
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: message },

@@ -28,6 +28,7 @@ import { asyncHandler } from './lib/asyncHandler';
 import { wsSubscribe, wsUnsubscribe } from './lib/wsHub';
 import { startShopperExpiry } from './lib/shopperExpiry';
 import { idempotencyMiddleware } from './lib/idempotency';
+import { clientIp } from './lib/clientIp';
 
 const app = express();
 app.disable('etag');
@@ -77,6 +78,7 @@ if (!isDev) {
       // samma anrop. Flera hushållsmedlemmar på samma wifi delar dessutom
       // IP-kvoten. 200 var för snålt för normal användning utan cache.
       max: 600,
+      keyGenerator: clientIp,
       standardHeaders: true,
       legacyHeaders: false,
       message: { error: 'Too many requests, please try again later' },
@@ -213,8 +215,7 @@ server.on('upgrade', async (req, socket, head) => {
     // X-Forwarded-For; vi tog 'trust proxy' i app:en ovan, men för WS
     // måste vi läsa headern direkt eftersom socket.remoteAddress är
     // proxyns interna IP.
-    const fwd = req.headers['x-forwarded-for'];
-    const ip = (typeof fwd === 'string' ? fwd.split(',')[0].trim() : '') || req.socket.remoteAddress || 'unknown';
+    const ip = clientIp(req);
     if (!checkWsRateLimit(ip)) {
       console.warn(`[WS] Rate-limited connection from ${ip}`);
       socket.write('HTTP/1.1 429 Too Many Requests\r\n\r\n');
