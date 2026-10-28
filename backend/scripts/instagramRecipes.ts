@@ -18,7 +18,9 @@ async function main() {
   const html = await (await fetch(url, { headers: { 'User-Agent': LINK_PREVIEW_USER_AGENT } })).text();
   const caption = extractMetaText(html);
   console.log('Bildtext:', [...caption].length, 'tecken');
+  const t0 = Date.now();
   const recept = await parseRecipeTextWithAI(caption);
+  console.log(`Tid: ${((Date.now() - t0) / 1000).toFixed(1)} s`);
   console.log('Recept:', recept.length);
   for (const r of recept) console.log(`- ${r.day ?? "—"} ${r.title} (${r.ingredients.length} ingredienser${r.instructions ? "" : ", INGA instruktioner"})`);
   process.exit(0);
