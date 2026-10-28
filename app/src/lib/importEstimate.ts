@@ -7,11 +7,12 @@ import { anyLink } from './extractUrl';
  *
  * Tiden styrs av hur mycket modellen ska skriva, och det följer textens längd:
  * en önskan ("frasiga våfflor") ~6 s, ett recept ~10 s, en Instagram-bildtext
- * med fem recept (~2 200 tecken) ~15–25 s (Railway-loggen 2026-10-26).
+ * med fem recept (~2 200 tecken) ~15–25 s inklistrad och ~30 s som länk
+ * (Railway-loggen 2026-10-26, skärminspelning 2026-10-28).
  * En länk vet vi inte längden på i förväg; Instagram-inlägg kan vara långa.
  */
 export function estimateImportSeconds(kind: 'paste' | 'link', text: string): number {
-  if (kind === 'link') return /instagram\.com|instagr\.am|threads\.net/i.test(anyLink(text) ?? text) ? 18 : 9;
+  if (kind === 'link') return /instagram\.com|instagr\.am|threads\.net/i.test(anyLink(text) ?? text) ? 30 : 9;
   return Math.min(40, Math.max(6, Math.round(5 + text.trim().length / 150)));
 }
 

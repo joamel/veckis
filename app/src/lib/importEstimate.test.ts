@@ -15,7 +15,7 @@ describe('estimateImportSeconds', () => {
   });
 
   it('Instagram-länkar räknas som långa, andra länkar som ett recept', () => {
-    expect(estimateImportSeconds('link', 'https://www.instagram.com/p/abc/')).toBe(18);
+    expect(estimateImportSeconds('link', 'https://www.instagram.com/p/abc/')).toBe(30);
     expect(estimateImportSeconds('link', 'https://www.ica.se/recept/kladdkaka/')).toBe(9);
   });
 });
