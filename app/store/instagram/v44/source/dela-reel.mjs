@@ -17,18 +17,20 @@ const SH = Math.round(SW * 2224 / 1080);
 const S = SW / 1080;                // klippets px → skärmens CSS-px
 
 // Klippets tidslinje, uppmätt ur inspelningen (sekunder i klippet, px i 1080×2224).
+// Råklippet: statusraden bortskuren, kontakterna i delningsarken övermålade med
+// arkets färg och arkens glidanimationer bortklippta (där rör sig kontakterna).
 const TAPS = [
-  [3.85, 498, 1805], [5.55, 540, 1115], [8.3, 398, 1900], [9.85, 540, 1769],
-  [16.25, 540, 2035], [19.8, 540, 1845], [22.45, 405, 2100], [28.45, 432, 1382], [32.3, 243, 1841],
+  [3.85, 498, 1805], [5.05, 540, 1115], [7.0, 398, 1900], [8.15, 540, 1769],
+  [14.55, 540, 2035], [18.1, 540, 1845], [20.75, 405, 2100], [26.75, 432, 1382], [30.6, 243, 1841],
 ];
 const SWIPE = { t0: 1.35, t1: 1.75, y: 785, x0: 860, x1: 260 };
 const STEPS = [
-  [0, 'Tryck på dela'], [3.95, 'Välj Handlis'], [8.4, 'Hämta recept'],
-  [11.9, 'Alla fem recepten hittade'], [16.3, 'Spara som veckomall'],
-  [19.9, 'Hela veckan – på rätt dagar'], [28.4, 'Sen är det bara att laga!'],
+  [0, 'Tryck på dela'], [4.0, 'Välj Handlis'], [7.15, 'Hämta recept'],
+  [10.2, 'Alla fem recepten hittade'], [14.6, 'Spara som veckomall'],
+  [18.2, 'Hela veckan – på rätt dagar'], [26.7, 'Sen är det bara att laga!'],
 ];
 // Reelens tid → klippets tid: tittandet i början 1,5× och bläddrandet i menyn 2×.
-const SEGS = [[0, 3.6, 1.5], [3.6, 20.3, 1], [20.3, 28.3, 2], [28.3, 35.15, 1]];
+const SEGS = [[0, 3.6, 1.5], [3.6, 18.6, 1], [18.6, 26.6, 2], [26.6, 33.45, 1]];
 const HOOK = 2.6, END = 3.2;
 const segLen = SEGS.map(([a, b, v]) => (b - a) / v);
 const MID = segLen.reduce((x, y) => x + y, 0);
