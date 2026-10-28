@@ -20,7 +20,7 @@ export const FFMPEG = () => req('ffmpeg-static');
 const font = f => pathToFileURL(join(ASSETS, 'fonts', f)).href;
 export const ICON = pathToFileURL(join(ASSETS, 'icon.png')).href;
 
-export const C = { skog: '#1d3b2e', lime: '#cde66b', mint: '#cfddb4', cream: '#f4f7ec', korall: '#f3a98f', persika: '#fbe3d3', himmel: '#d6e6ee', grön: '#2f5a44' };
+export const C = { skog: '#1d3b2e', lime: '#cde66b', mint: '#cfddb4', cream: '#f4f7ec', korall: '#f3a98f', persika: '#fbe3d3', himmel: '#d6e6ee', grön: '#2f5a44', rosa: '#f6c9d4' };
 
 const VEG = {
   broccoli: `<circle cx="68" cy="72" r="38"/><circle cx="114" cy="54" r="42"/><circle cx="148" cy="94" r="34"/><circle cx="98" cy="102" r="38"/><circle cx="52" cy="112" r="26"/><path d="M82 122 C 86 140 84 165 78 186 Q 100 196 124 186 C 116 165 114 140 120 122 Z"/>`,

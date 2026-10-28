@@ -77,3 +77,15 @@ Filer: `4-reel-vilken-dag.mp4` (med melodin från `aterkommande/source/music.mjs
 > (Vi gissar på söndag.)
 >
 > #storhandla #veckohandling #inköpslista #veckomeny #handlis
+
+---
+
+## Reel: Dela till Handlis (tips #1)
+Filer: `5-reel-dela-till-handlis.mp4` (melodi), `-tyst.mp4` (välj populärt ljud), omslag `5-reel-dela-till-handlis-omslag.jpg`. 35,8 s, 1080×1920. Byggs med `source/dela-reel.mjs` ur råklippet `5-dela-till-handlis-ra.mp4` (statusrad bort, kontakter suddade, väntan kortad). Trycken är animerade i efterhand – positioner och tider står i `TAPS`.
+
+> Hittat en veckomeny på Instagram? 🛒
+> Tryck på dela → välj Handlis → klart. Alla recepten hamnar i Handlis, och sparar du dem som veckomall ligger de på rätt dagar – med inköpslistan ett tryck bort.
+>
+> Prova med vår veckomeny i flödet 👇 Länk i bion.
+>
+> #veckomeny #recept #middagstips #storhandla #inköpslista #handlis
