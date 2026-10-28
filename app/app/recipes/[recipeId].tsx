@@ -1769,7 +1769,7 @@ export function RecipeDetail({ recipeId, transfer, edit: editParam, suggested: s
                 </View>
               ) : null}
             </View>
-            {!editMode && (recipe.originalInstructions || recipe.ingredients.some(i => isConvertibleUnit(i.unit) || i.originalName)) && (
+            {!editMode && hasSourceVersion(recipe) && (
               <Pressable
                 style={s.ingConvertBtn}
                 hitSlop={8}
@@ -2600,6 +2600,18 @@ function medLitetBrak(text: string, brakStil: TextStyle): ReactNode {
   const m = text.match(/^(\d+\s)?(\d\/\d)(.*)$/);
   if (!m) return text;
   return <>{m[1]}<Text style={brakStil}>{m[2]}</Text>{m[3]}</>;
+}
+
+/** Ändrar ↔-knappen något som syns? Ett sparat original som bara skiljer i
+ *  blanksteg, ett originalName som är samma ord, eller en amerikansk enhet
+ *  utan mängd (som aldrig visas) räknas inte — annars syns knappen på svenska
+ *  recept där den inte gör något. */
+function hasSourceVersion(recipe: { instructions?: string | null; originalInstructions?: string | null; ingredients: Array<{ name: string; originalName?: string | null; quantity: number | null; unit: string | null }> }): boolean {
+  const flat = (s: string | null | undefined) => (s ?? '').replace(/\s+/g, ' ').trim();
+  if (recipe.originalInstructions && flat(recipe.originalInstructions) !== flat(recipe.instructions)) return true;
+  return recipe.ingredients.some(i =>
+    (i.originalName && i.originalName.trim().toLowerCase() !== i.name.trim().toLowerCase())
+    || (i.quantity != null && isConvertibleUnit(i.unit)));
 }
 
 /** Bara mängd + enhet ("300 g"), för receptvyns mängdkolumn. Tom sträng om

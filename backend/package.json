@@ -31,7 +31,8 @@
     "clean:dupes": "tsx scripts/clean-duplicates.ts",
     "clean:all": "tsx scripts/clean-all-names.ts",
     "fix:units": "tsx scripts/fix-units.ts",
-    "clean:recipes": "tsx scripts/clean-recipe-ingredients.ts"
+    "clean:recipes": "tsx scripts/clean-recipe-ingredients.ts",
+    "clean:originals": "tsx scripts/clear-swedish-originals.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.95.2",
