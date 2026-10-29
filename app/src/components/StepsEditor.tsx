@@ -12,8 +12,9 @@ type Props = {
   /** Stegen som en text, ett steg per rad — samma form som sparas. */
   value: string;
   onChange: (text: string) => void;
-  /** Ett steg fick fokus (eller växte). Får knappen "Lägg till steg" så att
-   *  skärmen kan skrolla den ovanför tangentbordet. */
+  /** Ett steg fick fokus (eller växte). Får det som ska synas ovanför
+   *  tangentbordet: det sista steget visar knappen "Lägg till steg", övriga
+   *  bara sig själva. */
   onStepFocus?: (addButton: View | null) => void;
   /** Ett nytt steg har renderats. Skärmen skrollar fram knappen; det nya
    *  steget får fokus först efter REVEAL_MS, när skrollningen är klar. */
@@ -35,10 +36,19 @@ export function StepsEditor({ value, onChange, onStepFocus, onStepAdded, onStepB
   // Vilket steg som har fokus. Blur väntar en stund: när fokus flyttas till
   // nästa steg ska skärmen inte hinna tro att inget steg är fokuserat.
   const focusedIdx = useRef<number | null>(null);
+  // Senaste kända höjd per steg — se onContentSizeChange nedan.
+  const heights = useRef<number[]>([]);
+
+  // Vad som ska synas ovanför tangentbordet: knappen bara för sista steget,
+  // annars steget självt. Förut var det alltid knappen under SISTA steget, så
+  // att redigera steg 2 av 8 skrollade bort steg 2 ur bild (feedback 2026-10-29).
+  function revealTarget(idx: number): View | null {
+    return idx === steps.length - 1 ? addBtnRef.current : (refs.current[idx] as unknown as View | null);
+  }
 
   function stepFocused(idx: number) {
     focusedIdx.current = idx;
-    onStepFocus?.(addBtnRef.current);
+    onStepFocus?.(revealTarget(idx));
   }
 
   function stepBlurred(idx: number) {
@@ -130,8 +140,16 @@ export function StepsEditor({ value, onChange, onStepFocus, onStepAdded, onStepB
             onKeyPress={e => removeEmpty(idx, e)}
             onFocus={() => stepFocused(idx)}
             onBlur={() => stepBlurred(idx)}
-            // Ett långt steg som radbryts flyttar ned knappen — håll den synlig.
-            onContentSizeChange={() => { if (focusedIdx.current === idx) onStepFocus?.(addBtnRef.current); }}
+            // Ett steg som radbryts och växer ska hållas synligt. BARA när höjden
+            // faktiskt ökar: iOS rapporterar storleksändring även utan ändring,
+            // och varje sådan skrollade ned skärmen igen — det gick inte att
+            // skrolla upp medan ett steg hade fokus (feedback 2026-10-29).
+            onContentSizeChange={e => {
+              const h = e.nativeEvent.contentSize.height;
+              const förra = heights.current[idx] ?? h;
+              heights.current[idx] = h;
+              if (focusedIdx.current === idx && h > förra + 1) onStepFocus?.(revealTarget(idx));
+            }}
             placeholder={idx === 0 ? str.detail.stepFirstPlaceholder : str.detail.stepPlaceholder}
             placeholderTextColor={c.textFaint}
             accessibilityLabel={str.detail.stepA11y(idx + 1)}
