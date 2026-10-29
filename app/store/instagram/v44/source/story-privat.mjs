@@ -71,6 +71,20 @@ if (existsSync(fil('recept.jpg')) && existsSync(fil('inkop.jpg'))) {
       <img src="${ICON}" style="width:50px;height:50px;border-radius:13px">
       ${brand(C.skog, 42)}
     </div>`, 960);
+
+  // Variant: korten utdragna åt vänster som en solfjäder — receptlistan längst
+  // fram till höger, veckomenyn bakom, inköpslistan längst bak till vänster.
+  // Bakre korten syns med vänsterkanten, så varunamn och dagar syns utan förskjutning.
+  STORIES['story-solfjader'] = page(C.lime, `
+    ${veg('broccoli', C.skog, 'width:76px;right:22px;top:48px;transform:rotate(12deg)', C.lime)}
+    ${veg('avocado', C.skog, 'width:64px;left:26px;top:58px;transform:rotate(-14deg)', C.lime)}
+    ${kort(fil('inkop.jpg'), { left: 18, top: 172, w: 230, rot: -12, z: 1, dim: 0.9 })}
+    ${kort(fil('veckomeny-bilder.jpg'), { left: 96, top: 146, w: 250, rot: -5, z: 2, dim: 0.95 })}
+    ${kort(fil('recept.jpg'), { left: 218, top: 118, w: FRAM, rot: 3, z: 3 })}
+    <div style="position:absolute;left:0;right:0;top:${118 + framH + 16 + 30}px;display:flex;justify-content:center;align-items:center;gap:12px;z-index:4">
+      <img src="${ICON}" style="width:50px;height:50px;border-radius:13px">
+      ${brand(C.skog, 42)}
+    </div>`, 960);
 }
 
 const b = await browser();
