@@ -22,7 +22,9 @@ import { HAPTIC_CHECKOUT_KEY, SOUND_CHECKOUT_KEY } from '../src/hooks/useCheckHa
 import { PROXIMITY_SCREEN_KEY } from '../src/hooks/useProximityScreen';
 import { isProximityScreenAvailable, proximityScreenStatus } from '../modules/proximity-screen';
 import { LANDING_TABS, DEFAULT_LANDING_TAB, getLandingTab, setLandingTab, type LandingTabKey } from '../src/lib/landingTab';
-import { preferences as str } from '../src/lib/svenska';
+import { preferences as str, instagramPromo } from '../src/lib/svenska';
+import { useExperiment } from '../src/lib/experiments';
+import { INSTAGRAM_URL } from '../src/lib/storeLinks';
 import { useApiClient } from '../src/api/client';
 import { useDesign } from '../src/context/DesignContext';
 import { useBottomGap } from '../src/hooks/useBottomGap';
@@ -43,6 +45,8 @@ export default function PreferencesScreen() {
   const bottomGap = useBottomGap();
   const s = useMemo(() => makeStyles(c, nyDesign, ny), [c, nyDesign, ny]);
   const router = useRouter();
+  // Instagram-raden: bara i dev-läget tills den släpps.
+  const devMode = useExperiment('dev-mode');
   const { showToast, showError } = useToast();
   const [showNotifModal, setShowNotifModal] = useState(false);
   // Läses vid render: raden uppdateras nästa gång skärmen öppnas, vilket
@@ -253,6 +257,20 @@ export default function PreferencesScreen() {
             <Text style={s.rowText}>{str.rows.contactSupport}</Text>
             <Ionicons name="open-outline" size={16} color={nyDesign ? ny.kontur : c.textFaint} />
           </Pressable>
+          {devMode && INSTAGRAM_URL && (
+            <Pressable style={[s.row, s.rowBorder]} onPress={() => { const { Linking } = require('react-native'); Linking.openURL(INSTAGRAM_URL).catch(() => {}); }} accessibilityRole="link">
+              {nyDesign ? (
+                <View style={[s.nyRund, s.nyRundMork]}><Ionicons name="logo-instagram" size={18} color={ny.lime} /></View>
+              ) : (
+                <Ionicons name="logo-instagram" size={18} color={c.primary} />
+              )}
+              <View style={{ flex: 1 }}>
+                <Text style={s.rowText}>{instagramPromo.settingsRow}</Text>
+                <Text style={{ fontSize: 12, color: nyDesign ? ny.textDampad : c.textFaint, marginTop: 2 }}>{instagramPromo.settingsSub}</Text>
+              </View>
+              <Ionicons name="open-outline" size={16} color={nyDesign ? ny.kontur : c.textFaint} />
+            </Pressable>
+          )}
           <Pressable style={[s.row, s.rowBorder]} onPress={() => router.push('/privacy' as never)}>
             {nyDesign ? (
               <View style={[s.nyRund, s.nyRundLjus]}><Ionicons name="shield-outline" size={18} color={ny.padYta} /></View>

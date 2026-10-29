@@ -39,6 +39,8 @@ import { useTablet } from '../../src/hooks/useTablet';
 import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { consumeSpotlight } from '../../src/lib/spotlightRequest';
 import { EmptyState } from '../../src/components/EmptyState';
+import { InstagramHint } from '../../src/components/InstagramHint';
+import { useExperiment } from '../../src/lib/experiments';
 import { DraggableBottomSheet } from '../../src/components/DraggableBottomSheet';
 import { SHEET_HEADER_ICON } from '../../src/components/SheetHeader';
 import { useSheetLift } from '../../src/hooks/useSheetLift';
@@ -291,6 +293,8 @@ export default function MenuScreen() {
   const client = useApiClient();
   const { showToast: showGlobalToast, showError } = useToast();
   const confirm = useConfirm();
+  // Instagram-tipset i tomläget: bara i dev-läget tills det släpps.
+  const devMode = useExperiment('dev-mode');
   const { householdId, householdName } = useHousehold();
   const { nyDesign } = useDesign();
   const { getToken } = useAuth();
@@ -1904,6 +1908,7 @@ export default function MenuScreen() {
             onAction={isPastWeek ? undefined : openPlanner}
           />
         )}
+        {!anyScheduled && !isPastWeek && devMode && <InstagramHint />}
 
         {/* Snabbrätt längst ned i veckan — ett sidoflöde, så vanliga rätter
             (dagens "+", receptväljaren) får inget extra steg. */}
