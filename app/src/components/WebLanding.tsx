@@ -100,6 +100,29 @@ export function WebLanding() {
         </View>
       </View>
 
+      {/* Så ser Handlis ut — appen själv, inte bara ord om den. */}
+      <View style={s.showSection}>
+        <View style={s.sectionInner}>
+          <Text style={s.sectionHeading}>{str.showcase.heading}</Text>
+          <Text style={s.showBody}>{str.showcase.body}</Text>
+          <View style={s.showRad}>
+            <Image source={APP_VYER} style={s.showBild} resizeMode="contain" accessibilityLabel={str.showcase.imageAlt} />
+            {Platform.OS === 'web' && (
+              <View style={s.showVideo}>
+                {createElement('video', {
+                  src: REEL_URL,
+                  poster: REEL_POSTER,
+                  autoPlay: true, muted: true, loop: true, playsInline: true, controls: false,
+                  preload: 'metadata',
+                  'aria-label': str.showcase.videoAlt,
+                  style: { width: '100%', height: '100%', objectFit: 'cover', display: 'block' },
+                })}
+              </View>
+            )}
+          </View>
+        </View>
+      </View>
+
       {/* Krittavla — appens kärn-loop (ovanför funktioner). Mobil = swipe-karusell. */}
       <View style={s.board}>
         <View style={s.boardInner}>
@@ -130,29 +153,6 @@ export function WebLanding() {
                 <Text style={s.featureBody}>{f.body}</Text>
               </View>
             ))}
-          </View>
-        </View>
-      </View>
-
-      {/* Så ser Handlis ut — appen själv, inte bara ord om den. */}
-      <View style={s.showSection}>
-        <View style={s.sectionInner}>
-          <Text style={s.sectionHeading}>{str.showcase.heading}</Text>
-          <Text style={s.showBody}>{str.showcase.body}</Text>
-          <View style={s.showRad}>
-            <Image source={APP_VYER} style={s.showBild} resizeMode="contain" accessibilityLabel={str.showcase.imageAlt} />
-            {Platform.OS === 'web' && (
-              <View style={s.showVideo}>
-                {createElement('video', {
-                  src: REEL_URL,
-                  poster: REEL_POSTER,
-                  autoPlay: true, muted: true, loop: true, playsInline: true, controls: false,
-                  preload: 'metadata',
-                  'aria-label': str.showcase.videoAlt,
-                  style: { width: '100%', height: '100%', objectFit: 'cover', display: 'block' },
-                })}
-              </View>
-            )}
           </View>
         </View>
       </View>
