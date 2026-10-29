@@ -1920,6 +1920,13 @@ export const storeButtons = {
 // för login-vägg. Beskriver appens syfte (krav för Googles OAuth-verifiering +
 // Google Play) och funkar som marknadsförings-front.
 export const landing = {
+  // "Så ser Handlis ut": riktiga skärmbilder och Dela-reelen.
+  showcase: {
+    heading: 'Så ser Handlis ut',
+    body:    'Receptsamlingen, veckomenyn och inköpslistan i butikens ordning – i samma app. Hittar du en veckomeny på Instagram? Tryck Dela, välj Handlis, och hela veckan är planerad.',
+    imageAlt: 'Handlis på tre telefoner: receptsamlingen, veckomenyn och inköpslistan',
+    videoAlt: 'Film: ett Instagram-inlägg delas till Handlis och blir en planerad veckomeny',
+  },
   instagram: {
     eyebrow: 'Följ oss på Instagram',
     heading: 'Inspiration till veckomenyn',

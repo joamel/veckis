@@ -1,5 +1,5 @@
-import { useMemo, useRef, useState } from 'react';
-import { Image, Linking, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { createElement, useMemo, useRef, useState } from 'react';
+import { Image, Linking, Platform, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { Pressable } from './Pressable';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -16,6 +16,13 @@ import { nyLjus as ny, nyFont } from '../lib/nyDesign';
 const LOGO = require('../../assets/icon.png');
 const BOARD = require('../../assets/koncept-board.webp'); // krittavle-illustration (1536x850, 3 boxar)
 const BOARD_RATIO = 1536 / 850;
+// "Så ser Handlis ut": tre vyer med riktiga matbilder (solfjädern ur
+// app/store/instagram/v44, beskuren) och Dela-reelen (public/, nedskalad
+// 540×960 ~0,5 MB; ljudlös så att den får spelas upp automatiskt).
+const APP_VYER = require('../../assets/landing/app-vyer.jpg');
+const APP_VYER_RATIO = 720 / 820;
+const REEL_URL = '/reel-dela-till-handlis.mp4';
+const REEL_POSTER = '/reel-dela-till-handlis.jpg';
 // Tre inlägg ur Instagram-flödet (app/store/instagram/v44), nedskalade.
 // Byts när det finns nyare — de visar stilen, inte en viss vecka.
 const IG_INLAGG = [
@@ -123,6 +130,29 @@ export function WebLanding() {
                 <Text style={s.featureBody}>{f.body}</Text>
               </View>
             ))}
+          </View>
+        </View>
+      </View>
+
+      {/* Så ser Handlis ut — appen själv, inte bara ord om den. */}
+      <View style={s.showSection}>
+        <View style={s.sectionInner}>
+          <Text style={s.sectionHeading}>{str.showcase.heading}</Text>
+          <Text style={s.showBody}>{str.showcase.body}</Text>
+          <View style={s.showRad}>
+            <Image source={APP_VYER} style={s.showBild} resizeMode="contain" accessibilityLabel={str.showcase.imageAlt} />
+            {Platform.OS === 'web' && (
+              <View style={s.showVideo}>
+                {createElement('video', {
+                  src: REEL_URL,
+                  poster: REEL_POSTER,
+                  autoPlay: true, muted: true, loop: true, playsInline: true, controls: false,
+                  preload: 'metadata',
+                  'aria-label': str.showcase.videoAlt,
+                  style: { width: '100%', height: '100%', objectFit: 'cover', display: 'block' },
+                })}
+              </View>
+            )}
           </View>
         </View>
       </View>
@@ -290,6 +320,13 @@ const makeStyles = (narrow: boolean) => StyleSheet.create({
   featureCard: { flex: narrow ? undefined : 1, backgroundColor: BRAND.card, borderRadius: 18, padding: 26, borderWidth: 1, borderColor: BRAND.line },
   featureTitle: { fontSize: 19, fontWeight: '800', color: BRAND.greenDark, marginBottom: 10 },
   featureBody: { fontSize: 15, lineHeight: 23, color: BRAND.inkMuted },
+
+  showSection: { paddingHorizontal: 20, paddingVertical: narrow ? 44 : 72, backgroundColor: ny.lime },
+  showBody: { fontSize: narrow ? 15 : 17, lineHeight: narrow ? 23 : 27, color: BRAND.greenDark, textAlign: 'center', maxWidth: 620, alignSelf: 'center', marginTop: narrow ? -16 : -28, marginBottom: narrow ? 24 : 40 },
+  showRad: { flexDirection: narrow ? 'column' : 'row', alignItems: 'center', justifyContent: 'center', gap: narrow ? 28 : 48 },
+  showBild: { width: narrow ? '100%' : 460, maxWidth: 460, aspectRatio: APP_VYER_RATIO },
+  // Reelen som en telefon: mörk ram, rundade hörn.
+  showVideo: { width: narrow ? 240 : 300, aspectRatio: 9 / 16, borderRadius: 32, overflow: 'hidden', borderWidth: 8, borderColor: '#0d1f16', backgroundColor: '#0d1f16', shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 20, shadowOffset: { width: 0, height: 10 } },
 
   igSection: { paddingHorizontal: 20, paddingVertical: narrow ? 44 : 72, backgroundColor: BRAND.beige },
   igRubrik: { alignItems: 'center', maxWidth: 620, alignSelf: 'center' },

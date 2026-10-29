@@ -9,7 +9,7 @@
 // - API-requests (api/, /trpc/, /ws/) → network-only. Vi cachar aldrig data.
 //
 // När du ändrar i denna fil — bumpa CACHE_VERSION så gamla cacheen rensas.
-const CACHE_VERSION = 'veckis-v17';
+const CACHE_VERSION = 'veckis-v18';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const HTML_CACHE = `${CACHE_VERSION}-html`;
 
@@ -57,6 +57,12 @@ self.addEventListener('fetch', (event) => {
     url.pathname.startsWith('/ws') ||
     url.hostname !== self.location.hostname // cross-origin (Clerk, Render API)
   ) {
+    return;
+  }
+
+  // Video: webbläsaren hämtar den i bitar (Range → 206), och delsvar går inte
+  // att lägga i cachen — Safari spelade då inte upp den. Alltid direkt mot nätet.
+  if (req.headers.has('range') || /\.(mp4|webm|mov)$/i.test(url.pathname)) {
     return;
   }
 
