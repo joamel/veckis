@@ -119,8 +119,8 @@ export const common = {
 };
 
 // ─── Kom igång-kort (onboarding-checklista) ──────────────────────────────────
-// Instagram-kontot i appen (dev-läget först): en rad i Inställningar, ett tips
-// i veckomenyns tomläge och ett engångskort efter en planerad vecka.
+// Instagram-kontot i appen: en rad i Inställningar, en flik i en tom vecka och
+// ett engångskort efter en planerad vecka.
 export const instagramPromo = {
   settingsRow:   'Följ oss på Instagram',
   menuHint:      'Ingen idé för veckan? Vi lägger upp färdiga veckomenyer på Instagram – importera dem till Handlis med Dela.',
@@ -2023,7 +2023,7 @@ export const admin = {
   sandbox: {
     'dev-mode': {
       title:       'Dev-läge',
-      description: 'Slår på det som är under utveckling, bara på den här telefonen. Just nu: förslag på kategoriordning ur så lite som en handling i butiken, och Instagram-kontot i appen (Inställningar, tom veckomeny, efter en planerad vecka).',
+      description: 'Slår på det som är under utveckling, bara på den här telefonen. Just nu: förslag på kategoriordning ur så lite som en handling i butiken.',
     },
   },
   tabs: {

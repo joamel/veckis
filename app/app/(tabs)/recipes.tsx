@@ -45,7 +45,6 @@ import { recipes as str, common, gettingStarted } from '../../src/lib/svenska';
 import { formateraTidsetikett } from '../../src/lib/cookTimer';
 import { useSpotlightTip, useTipsReady } from '../../src/context/SpotlightTipContext';
 import { useOnceFlag } from '../../src/hooks/useOnceFlag';
-import { useExperiment } from '../../src/lib/experiments';
 import { showInstagramTipOnce } from '../../src/lib/instagramTip';
 import { consumeSpotlight } from '../../src/lib/spotlightRequest';
 import { useTablet } from '../../src/hooks/useTablet';
@@ -99,7 +98,6 @@ export default function RecipesScreen() {
   const showTip = useSpotlightTip();
   const tipsReady = useTipsReady();
   const pinTagTip = useOnceFlag('seen-pin-tag-tip');
-  const devMode = useExperiment('dev-mode');
   const pinTagTipShownRef = useRef(false);
   const taggRadRef = useRef<View>(null);
   const client = useApiClient();
@@ -788,7 +786,7 @@ export default function RecipesScreen() {
         await client.applyMenuTemplate(mallId, v);
         showToast(str.createModal.photo.templateApplied(v.weekNumber), 'success');
         // Ett bra ögonblick: veckan är planerad. En gång, sen aldrig mer.
-        void showInstagramTipOnce(confirm, devMode);
+        void showInstagramTipOnce(confirm);
       } catch (err) {
         showError(err, str.errors.generic);
       }

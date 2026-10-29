@@ -40,7 +40,6 @@ import { ScreenHeader } from '../../src/components/ScreenHeader';
 import { consumeSpotlight } from '../../src/lib/spotlightRequest';
 import { EmptyState } from '../../src/components/EmptyState';
 import { InstagramHint } from '../../src/components/InstagramHint';
-import { useExperiment } from '../../src/lib/experiments';
 import { showInstagramTipOnce } from '../../src/lib/instagramTip';
 import { DraggableBottomSheet } from '../../src/components/DraggableBottomSheet';
 import { SHEET_HEADER_ICON } from '../../src/components/SheetHeader';
@@ -294,8 +293,6 @@ export default function MenuScreen() {
   const client = useApiClient();
   const { showToast: showGlobalToast, showError } = useToast();
   const confirm = useConfirm();
-  // Instagram-tipset i tomläget: bara i dev-läget tills det släpps.
-  const devMode = useExperiment('dev-mode');
   // Ny nyckel varje gång fliken visas: Instagram-tipset läser då om sin flagga
   // (t.ex. efter "Återställ introduktionstips") och glider in på nytt.
   const [fokusRunda, setFokusRunda] = useState(0);
@@ -1516,7 +1513,7 @@ export default function MenuScreen() {
       setBulkTransferStep('recipe');
       load();
       showGlobalToast(str.toasts.transferred(actuallyTransfer.length), 'success');
-      void showInstagramTipOnce(confirm, devMode);
+      void showInstagramTipOnce(confirm);
     } catch (e) {
       setBulkTransferringListId(null);
       showError(e, str.toasts.errorTransfer);
@@ -1688,10 +1685,9 @@ export default function MenuScreen() {
         onSetMeal={isCenter && !isPastWeek ? (m => setMenuItemMeal(item, m)) : noop}
       />
     );
-    // Tom vecka (dev-läget, ny design): i stället för tomlägets stora ikon långt
-    // ned ligger kniv och gaffel som ett svagt mönster bakom dagarna, och
-    // Instagram-tipset överst där det syns.
-    const tomVeckaNy = devMode && nyDesign && !anyScheduled;
+    // Tom vecka (ny design): i stället för tomlägets stora ikon långt ned ligger
+    // kniv och gaffel som ett svagt mönster bakom dagarna.
+    const tomVeckaNy = nyDesign && !anyScheduled;
     return (
       <>
         <View style={[isWide ? s.daysRow : s.daysCol, nyDesign && s.nyDagar]}>
@@ -1962,7 +1958,7 @@ export default function MenuScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      {devMode && !loading && weekOffset >= 0 && menuItems.length === 0 && <InstagramHint key={fokusRunda} />}
+      {!loading && weekOffset >= 0 && menuItems.length === 0 && <InstagramHint key={fokusRunda} />}
       <SafeAreaView style={[s.container, nyDesign && s.nyContainer]} edges={nyDesign ? ['top', 'left', 'right'] : undefined}>
       {nyDesign ? (
         <NyHeader
@@ -2116,7 +2112,7 @@ export default function MenuScreen() {
         weekNumber={weekNumber}
         weekHasItems={menuItems.length > 0}
         readOnly={weekOffset < 0}
-        onApplied={() => { load(); void showInstagramTipOnce(confirm, devMode); }}
+        onApplied={() => { load(); void showInstagramTipOnce(confirm); }}
       />
 
       <DraggableBottomSheet

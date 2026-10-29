@@ -5,7 +5,7 @@ import { instagramPromo as str } from './svenska';
 
 const KEY = 'seen-instagram-after-planning';
 
-/** Flaggorna bakom Instagram-tipsen — nollställs med "Återställ introduktionstips" i dev-läget. */
+/** Flaggorna bakom Instagram-tipsen — nollställs med "Visa introduktionen igen". */
 export const INSTAGRAM_TIP_FLAGS = [KEY, 'dismissed-instagram-menu-hint'] as const;
 
 type Confirm = (opts: {
@@ -19,8 +19,8 @@ type Confirm = (opts: {
  * inköpslistan. Flaggan sätts innan kortet visas, så det kan aldrig komma två
  * gånger även om två ögonblick sker tätt efter varandra.
  */
-export async function showInstagramTipOnce(confirm: Confirm, enabled: boolean): Promise<void> {
-  if (!enabled || !INSTAGRAM_URL) return;
+export async function showInstagramTipOnce(confirm: Confirm): Promise<void> {
+  if (!INSTAGRAM_URL) return;
   const seen = await SecureStore.getItemAsync(KEY).catch(() => '1');
   if (seen === '1') return;
   await SecureStore.setItemAsync(KEY, '1').catch(() => {});
