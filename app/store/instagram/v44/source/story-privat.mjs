@@ -53,15 +53,15 @@ const kort = (src, { left, top, w, rot, z, dim = 1 }) => {
 };
 if (existsSync(fil('recept.jpg')) && existsSync(fil('laga.png'))) {
   const FRAM = 280, framH = Math.round(FRAM * 2622 / 1206);
-  STORIES['story-kortlek'] = page(C.lime, `
+  STORIES['story-app-kortlek'] = page(C.lime, `
     ${veg('broccoli', C.skog, 'width:80px;left:16px;top:46px;transform:rotate(-10deg)', C.lime)}
     ${veg('avocado', C.skog, 'width:70px;right:20px;top:60px;transform:rotate(14deg)', C.lime)}
-    ${kort(fil('laga.png'), { left: 22, top: 150, w: 240, rot: -9, z: 1, dim: 0.92 })}
-    ${kort(fil('veckomeny-bilder.jpg'), { left: 262, top: 150, w: 240, rot: 9, z: 1, dim: 0.92 })}
+    ${kort(fil('veckomeny-bilder.jpg'), { left: 22, top: 150, w: 240, rot: -9, z: 1, dim: 0.92 })}
+    ${kort(fil('laga.png'), { left: 262, top: 150, w: 240, rot: 9, z: 1, dim: 0.92 })}
     ${kort(fil('recept.jpg'), { left: (540 - FRAM) / 2 - 8, top: 118, w: FRAM, rot: 0, z: 2 })}
-    <div style="position:absolute;left:0;right:0;top:${118 + framH + 16 + 24}px;display:flex;justify-content:center;align-items:center;gap:10px;z-index:3">
-      <img src="${ICON}" style="width:34px;height:34px;border-radius:9px">
-      ${brand(C.skog, 28)}
+    <div style="position:absolute;left:0;right:0;top:${118 + framH + 16 + 22}px;display:flex;justify-content:center;align-items:center;gap:12px;z-index:3">
+      <img src="${ICON}" style="width:50px;height:50px;border-radius:13px">
+      ${brand(C.skog, 42)}
     </div>`, 960);
 }
 
