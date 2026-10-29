@@ -47,8 +47,9 @@ if (existsSync(fil('recept.jpg'))) {
 // shift: skjuter skärmbilden åt höger i kortet. Bara kortets yttre kant syns
 // bakom telefonen i mitten; utan förskjutning visade inköpslistan där bara
 // antal och bockrutor, inte varunamnen. Det som skjuts in vänsterifrån döljs
-// bakom mittelefonen; fyllnaden har listans bakgrundsfärg.
-const kort = (src, { left, top, w, rot, z, dim = 1, shift = 0, fill = '#eef1e8' }) => {
+// bakom mittelefonen; fyllnaden har telefonramens färg, så en kant som
+// sticker fram ser ut som ramen och inte som en grå list.
+const kort = (src, { left, top, w, rot, z, dim = 1, shift = 0, fill = '#0d1f16' }) => {
   const h = Math.round(w * 2622 / 1206);
   return `
   <div style="position:absolute;left:${left}px;top:${top}px;padding:8px;border-radius:42px;background:#0d1f16;transform:rotate(${rot}deg);z-index:${z};box-shadow:0 22px 50px rgba(0,0,0,.35)">
@@ -59,7 +60,7 @@ const kort = (src, { left, top, w, rot, z, dim = 1, shift = 0, fill = '#eef1e8' 
 };
 if (existsSync(fil('recept.jpg')) && existsSync(fil('inkop.jpg'))) {
   const FRAM = 280, framH = Math.round(FRAM * 2622 / 1206);
-  STORIES['story-kortlek-lista'] = page(C.lime, `
+  STORIES['story-kortlek'] = page(C.lime, `
     ${veg('broccoli', C.skog, 'width:80px;left:16px;top:46px;transform:rotate(-10deg)', C.lime)}
     ${veg('avocado', C.skog, 'width:70px;right:20px;top:60px;transform:rotate(14deg)', C.lime)}
     ${kort(fil('veckomeny-bilder.jpg'), { left: 22, top: 150, w: 240, rot: -9, z: 1, dim: 0.92 })}
