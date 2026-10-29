@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Animated, Linking, StyleSheet, Text } from 'react-native';
+import { Animated, Linking, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable } from './Pressable';
 import { useOnceFlag } from '../hooks/useOnceFlag';
@@ -34,8 +34,13 @@ export function InstagramHint({ top = '40%' }: { top?: `${number}%` | number }) 
   return (
     <Animated.View style={[s.flik, { top, transform: [{ translateX: x }] }]}>
       <Pressable style={s.inner} onPress={() => { void Linking.openURL(url).catch(() => {}); }} accessibilityRole="link" accessibilityLabel={str.menuHint}>
-        <Ionicons name="logo-instagram" size={20} color={SKOG} />
-        <Text style={s.text} numberOfLines={2}>{str.menuHintShort}</Text>
+        <Ionicons name="logo-instagram" size={22} color={SKOG} />
+        <View>
+          {/* Explicit bredd ur teckenantalet: Android mäter annars för smalt
+              och kapar sista bokstaven (se android-text-clipping). */}
+          <Text style={[s.title, { width: str.menuHintTitle.length * 8 + 8 }]} numberOfLines={1}>{str.menuHintTitle}</Text>
+          <Text style={[s.where, { width: str.menuHintWhere.length * 8 + 8 }]} numberOfLines={1}>{str.menuHintWhere}</Text>
+        </View>
       </Pressable>
       <Pressable onPress={stang} hitSlop={12} accessibilityLabel={str.close} style={s.close}>
         <Ionicons name="close" size={16} color={SKOG} />
@@ -47,11 +52,13 @@ export function InstagramHint({ top = '40%' }: { top?: `${number}%` | number }) 
 const s = StyleSheet.create({
   // Dockad mot högerkanten: rundad bara till vänster, som en flik.
   flik: {
-    position: 'absolute', right: 0, maxWidth: '72%', flexDirection: 'row', alignItems: 'center',
-    backgroundColor: LIME, borderTopLeftRadius: 22, borderBottomLeftRadius: 22, paddingLeft: 14, paddingVertical: 10, paddingRight: 8,
+    position: 'absolute', right: 0, flexDirection: 'row', alignItems: 'center',
+    backgroundColor: LIME, borderTopLeftRadius: 20, borderBottomLeftRadius: 20, paddingLeft: 12, paddingVertical: 7, paddingRight: 6,
     shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 8, zIndex: 50,
   },
-  inner: { flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 1 },
-  text: { fontSize: 13, lineHeight: 18, color: SKOG, fontWeight: '700', flexShrink: 1 },
-  close: { marginLeft: 8, padding: 2 },
+  inner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  // Tjockare text i en mindre ruta.
+  title: { fontSize: 13, lineHeight: 16, color: SKOG, fontWeight: '800' },
+  where: { fontSize: 12, lineHeight: 15, color: SKOG, fontWeight: '600', opacity: 0.8 },
+  close: { marginLeft: 6, padding: 2 },
 });
