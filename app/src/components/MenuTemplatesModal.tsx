@@ -133,6 +133,7 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
       }
     >
         <ScrollView contentContainerStyle={s.body} keyboardShouldPersistTaps="handled" scrollEnabled>
+          {weekHasItems ? (<>
           <Text style={s.sectionLabel}>{str.menuTemplatesModal.saveSection}</Text>
           <View style={s.saveRow}>
             <TextInput
@@ -150,7 +151,7 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
               {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.saveBtnText}>{str.menuTemplatesModal.save}</Text>}
             </Pressable>
           </View>
-          {!weekHasItems && <Text style={s.hint}>{str.menuTemplatesModal.noItemsHint}</Text>}
+          </>) : <Text style={[s.hint, { marginTop: 0 }]}>{str.menuTemplatesModal.noItemsHint}</Text>}
 
           <Text style={[s.sectionLabel, { marginTop: 22 }]}>{str.menuTemplatesModal.useSection}</Text>
           {readOnly && <Text style={s.hint}>{str.menuTemplatesModal.pastWeekHint}</Text>}

@@ -41,6 +41,7 @@ import { consumeSpotlight } from '../../src/lib/spotlightRequest';
 import { EmptyState } from '../../src/components/EmptyState';
 import { InstagramHint } from '../../src/components/InstagramHint';
 import { useExperiment } from '../../src/lib/experiments';
+import { showInstagramTipOnce } from '../../src/lib/instagramTip';
 import { DraggableBottomSheet } from '../../src/components/DraggableBottomSheet';
 import { SHEET_HEADER_ICON } from '../../src/components/SheetHeader';
 import { useSheetLift } from '../../src/hooks/useSheetLift';
@@ -1511,6 +1512,7 @@ export default function MenuScreen() {
       setBulkTransferStep('recipe');
       load();
       showGlobalToast(str.toasts.transferred(actuallyTransfer.length), 'success');
+      void showInstagramTipOnce(confirm, devMode);
     } catch (e) {
       setBulkTransferringListId(null);
       showError(e, str.toasts.errorTransfer);
@@ -1682,9 +1684,21 @@ export default function MenuScreen() {
         onSetMeal={isCenter && !isPastWeek ? (m => setMenuItemMeal(item, m)) : noop}
       />
     );
+    // Tom vecka (dev-läget, ny design): i stället för tomlägets stora ikon långt
+    // ned ligger kniv och gaffel som ett svagt mönster bakom dagarna, och
+    // Instagram-tipset överst där det syns.
+    const tomVeckaNy = devMode && nyDesign && !anyScheduled;
     return (
       <>
+        {!anyScheduled && !isPastWeek && devMode && <InstagramHint />}
         <View style={[isWide ? s.daysRow : s.daysCol, nyDesign && s.nyDagar]}>
+          {tomVeckaNy && (
+            <View pointerEvents="none" style={s.tomVeckaMonster}>
+              {Array.from({ length: 14 }, (_, i) => (
+                <Ionicons key={i} name="restaurant-outline" size={52} color={ny.text} style={{ transform: [{ rotate: i % 2 ? '14deg' : '-12deg' }] }} />
+              ))}
+            </View>
+          )}
           {DAYS.map((day, i) => {
             const items = weekItems.filter(m => m.day === day.key && visible(m)).sort(byCreated);
             const date = new Date(weekMon.getFullYear(), weekMon.getMonth(), weekMon.getDate() + i);
@@ -1802,7 +1816,7 @@ export default function MenuScreen() {
                   // smal tom yta så fort ett kort fälldes ut. En tom dag är en
                   // ljusare ruta som markeras när man drar ett kort över den.
                   // Den yttre dag-vyn, som mäts som droppmål, är densamma.
-                  <View style={[s.nyDag, !filled && s.nyDagTomRuta]}>
+                  <View style={[s.nyDag, !filled && s.nyDagTomRuta, tomVeckaNy && { backgroundColor: `${ny.kort}b3` }]}>
                     {/* Samma droppram som runt en planerad dags kort, så det
                         ser likadant ut att flytta en rätt till en tom dag. */}
                     {dragging && !filled && (
@@ -1899,7 +1913,7 @@ export default function MenuScreen() {
           </Pressable>
         )}
 
-        {!anyScheduled && (
+        {!anyScheduled && !tomVeckaNy && (
           <EmptyState
             icon="restaurant-outline"
             title={str.emptyState.noDishesPlanned.title}
@@ -1908,7 +1922,6 @@ export default function MenuScreen() {
             onAction={isPastWeek ? undefined : openPlanner}
           />
         )}
-        {!anyScheduled && !isPastWeek && devMode && <InstagramHint />}
 
         {/* Snabbrätt längst ned i veckan — ett sidoflöde, så vanliga rätter
             (dagens "+", receptväljaren) får inget extra steg. */}
@@ -2094,7 +2107,7 @@ export default function MenuScreen() {
         weekNumber={weekNumber}
         weekHasItems={menuItems.length > 0}
         readOnly={weekOffset < 0}
-        onApplied={load}
+        onApplied={() => { load(); void showInstagramTipOnce(confirm, devMode); }}
       />
 
       <DraggableBottomSheet
@@ -3040,6 +3053,7 @@ const makeStyles = (c: Palette, ny: NyPalett) => StyleSheet.create({
   // ny.kort finns i båda paletterna: i mörkt läge ett tydligt steg ljusare än
   // bakgrunden, men mörkare än den planerade dagens platsLjus — samma trappa.
   nyDagTomRuta: { backgroundColor: ny.kort },
+  tomVeckaMonster: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, overflow: 'hidden', flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', alignContent: 'space-around', opacity: 0.07, zIndex: 0 },
   nyDagDropOutline: { borderRadius: 18 },
   nyDagHuvud: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 30, paddingHorizontal: 4 },
   // flexShrink: 0 hindrar texterna från att krympa mot flex-utfyllnaden, men

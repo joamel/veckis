@@ -123,7 +123,6 @@ export const common = {
 // i veckomenyns tomläge och ett engångskort efter en planerad vecka.
 export const instagramPromo = {
   settingsRow:   'Följ oss på Instagram',
-  settingsSub:   '@handlis.app – veckomenyer, tips och trix',
   menuHint:      'Ingen idé för veckan? Vi lägger upp färdiga veckomenyer på Instagram – importera dem till Handlis med Dela.',
   follow:        'Följ @handlis.app',
   close:         'Stäng',
@@ -1765,6 +1764,7 @@ export const preferences = {
 
   landing: {
     label: 'Starta i',
+    chosen: (flik: string) => `${flik} vald som startskärm`,
     tabs: {
       shopping: 'Inköp',
       menu:     'Meny',

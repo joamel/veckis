@@ -212,13 +212,14 @@ export default function PreferencesScreen() {
         <Text style={s.sectionLabel}>{str.sections.app}</Text>
         <View style={s.group}>
           {/* Favorit-landningssida: vilken flik appen öppnar på */}
-          <View style={[s.row, { flexWrap: 'wrap' }]}>
+          <View style={s.row} accessibilityLabel={str.landing.label}>
             {nyDesign ? (
               <View style={[s.nyRund, s.nyRundLjus]}><Ionicons name="home-outline" size={18} color={ny.padYta} /></View>
             ) : (
               <Ionicons name="home-outline" size={18} color={c.accent} />
             )}
-            <Text style={s.rowText}>{str.landing.label}</Text>
+            {/* Ingen etikett: chipsen får plats på en rad, och valet bekräftas
+                med en toast ("Inköp vald som startskärm"). */}
             <View style={s.landingChips}>
               {LANDING_TABS.map(t => {
                 const active = landingTab === t.key;
@@ -226,7 +227,11 @@ export default function PreferencesScreen() {
                   <Pressable
                     key={t.key}
                     style={[s.landingChip, active && s.landingChipActive]}
-                    onPress={() => { setLandingTabState(t.key); setLandingTab(t.key).catch(() => {}); }}
+                    onPress={() => {
+                      setLandingTabState(t.key);
+                      setLandingTab(t.key).catch(() => {});
+                      if (!active) showToast(str.landing.chosen(str.landing.tabs[t.labelKey]), 'success');
+                    }}
                   >
                     <Ionicons name={t.icon as never} size={13} color={nyDesign ? (active ? ny.lime : ny.chipText) : (active ? '#fff' : c.textMuted)} />
                     <Text style={[s.landingChipText, active && s.landingChipTextActive]}>{str.landing.tabs[t.labelKey]}</Text>
@@ -264,10 +269,7 @@ export default function PreferencesScreen() {
               ) : (
                 <Ionicons name="logo-instagram" size={18} color={c.primary} />
               )}
-              <View style={{ flex: 1 }}>
-                <Text style={s.rowText}>{instagramPromo.settingsRow}</Text>
-                <Text style={{ fontSize: 12, color: nyDesign ? ny.textDampad : c.textFaint, marginTop: 2 }}>{instagramPromo.settingsSub}</Text>
-              </View>
+              <Text style={s.rowText}>{instagramPromo.settingsRow}</Text>
               <Ionicons name="open-outline" size={16} color={nyDesign ? ny.kontur : c.textFaint} />
             </Pressable>
           )}
@@ -343,8 +345,8 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   rowHint: { fontSize: 12.5, color: nyD ? ny.textDampad : c.textMuted, marginTop: 2 },
   versionFooter: { fontSize: 11, color: nyD ? ny.textDampad : c.textFaint, textAlign: 'center', marginTop: 16 },
   inlineChips: { flexDirection: 'row', gap: 6, flexShrink: 0 },
-  landingChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, width: '100%', marginTop: 4, paddingLeft: nyD ? 50 : 30 },
-  landingChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, backgroundColor: nyD ? ny.bricka : c.surfaceSubtle },
+  landingChips: { flex: 1, flexDirection: 'row', gap: 6 },
+  landingChip: { flex: 1, justifyContent: 'center', flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 6, paddingVertical: 7, borderRadius: 16, backgroundColor: nyD ? ny.bricka : c.surfaceSubtle },
   landingChipActive: { backgroundColor: nyD ? ny.valdYta : c.primary },
   landingChipText: { fontSize: 12, fontWeight: '600', color: nyD ? ny.chipText : c.textMuted },
   landingChipTextActive: { color: nyD ? ny.lime : '#fff' },

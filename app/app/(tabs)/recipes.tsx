@@ -16,7 +16,6 @@ import {
   TextInput,
   useWindowDimensions,
   View,
-  Linking,
 } from 'react-native';
 import { Pressable } from '../../src/components/Pressable';
 import Animated, { useSharedValue, useAnimatedScrollHandler, useAnimatedStyle, useAnimatedReaction, withTiming, interpolate, Extrapolation } from 'react-native-reanimated';
@@ -42,12 +41,12 @@ import { getISOWeek } from '../../src/lib/week';
 import { suggestRecipeTags } from '../../src/lib/recipeTagSuggestions';
 import { HandlisLoader } from '../../src/components/HandlisLoader';
 import type { WeekDay } from '@veckis/shared';
-import { recipes as str, common, gettingStarted, instagramPromo } from '../../src/lib/svenska';
+import { recipes as str, common, gettingStarted } from '../../src/lib/svenska';
 import { formateraTidsetikett } from '../../src/lib/cookTimer';
 import { useSpotlightTip, useTipsReady } from '../../src/context/SpotlightTipContext';
 import { useOnceFlag } from '../../src/hooks/useOnceFlag';
 import { useExperiment } from '../../src/lib/experiments';
-import { INSTAGRAM_URL } from '../../src/lib/storeLinks';
+import { showInstagramTipOnce } from '../../src/lib/instagramTip';
 import { consumeSpotlight } from '../../src/lib/spotlightRequest';
 import { useTablet } from '../../src/hooks/useTablet';
 import { useDesign } from '../../src/context/DesignContext';
@@ -100,8 +99,6 @@ export default function RecipesScreen() {
   const showTip = useSpotlightTip();
   const tipsReady = useTipsReady();
   const pinTagTip = useOnceFlag('seen-pin-tag-tip');
-  // Efter första planerade veckan ur en veckomall: tipsa om Instagram en gång.
-  const instagramTip = useOnceFlag('seen-instagram-after-template');
   const devMode = useExperiment('dev-mode');
   const pinTagTipShownRef = useRef(false);
   const taggRadRef = useRef<View>(null);
@@ -791,18 +788,7 @@ export default function RecipesScreen() {
         await client.applyMenuTemplate(mallId, v);
         showToast(str.createModal.photo.templateApplied(v.weekNumber), 'success');
         // Ett bra ögonblick: veckan är planerad. En gång, sen aldrig mer.
-        if (devMode && INSTAGRAM_URL && instagramTip.seen === false) {
-          const url = INSTAGRAM_URL;
-          instagramTip.markSeen();
-          setTimeout(() => confirm({
-            title: instagramPromo.afterTemplateTitle,
-            message: instagramPromo.afterTemplateMessage,
-            buttons: [
-              { label: instagramPromo.follow, icon: 'logo-instagram', onPress: () => { void Linking.openURL(url).catch(() => {}); } },
-              { label: instagramPromo.afterTemplateLater, style: 'cancel' },
-            ],
-          }), 800);
-        }
+        void showInstagramTipOnce(confirm, devMode);
       } catch (err) {
         showError(err, str.errors.generic);
       }
