@@ -42,11 +42,36 @@ if (existsSync(fil('recept.jpg'))) {
     ${logga(C.skog)}`, 960);
 }
 
+// Kortleken: receptlistan längst fram, veckomenyn och laga-läget lätt vinklade
+// bakom — en känsla av hela appen på en bild.
+const kort = (src, { left, top, w, rot, z, dim = 1 }) => {
+  const h = Math.round(w * 2622 / 1206);
+  return `
+  <div style="position:absolute;left:${left}px;top:${top}px;padding:8px;border-radius:42px;background:#0d1f16;transform:rotate(${rot}deg);z-index:${z};box-shadow:0 22px 50px rgba(0,0,0,.35)">
+    <img src="${pathToFileURL(src).href}" style="display:block;width:${w}px;height:${h}px;border-radius:35px;object-fit:cover;object-position:top;filter:brightness(${dim})">
+  </div>`;
+};
+if (existsSync(fil('recept.jpg')) && existsSync(fil('laga.png'))) {
+  const FRAM = 280, framH = Math.round(FRAM * 2622 / 1206);
+  STORIES['story-kortlek'] = page(C.lime, `
+    ${veg('broccoli', C.skog, 'width:80px;left:16px;top:46px;transform:rotate(-10deg)', C.lime)}
+    ${veg('avocado', C.skog, 'width:70px;right:20px;top:60px;transform:rotate(14deg)', C.lime)}
+    ${kort(fil('laga.png'), { left: 22, top: 150, w: 240, rot: -9, z: 1, dim: 0.92 })}
+    ${kort(fil('veckomeny-bilder.jpg'), { left: 262, top: 150, w: 240, rot: 9, z: 1, dim: 0.92 })}
+    ${kort(fil('recept.jpg'), { left: (540 - FRAM) / 2 - 8, top: 118, w: FRAM, rot: 0, z: 2 })}
+    <div style="position:absolute;left:0;right:0;top:${118 + framH + 16 + 24}px;display:flex;justify-content:center;align-items:center;gap:10px;z-index:3">
+      <img src="${ICON}" style="width:34px;height:34px;border-radius:9px">
+      ${brand(C.skog, 28)}
+    </div>`, 960);
+}
+
 const b = await browser();
 const p = await b.newPage();
 await p.setViewport({ width: 540, height: 960, deviceScaleFactor: 2 });
 const tmp = mkdtempSync(join(tmpdir(), 'handlis-story-'));
+const bara = process.env.ONLY;
 for (const [namn, html] of Object.entries(STORIES)) {
+  if (bara && namn !== bara) continue;
   const f = join(tmp, `${namn}.html`); writeFileSync(f, html);
   await p.goto(pathToFileURL(f).href, { waitUntil: 'networkidle0' });
   await p.evaluate(() => document.fonts.ready);
