@@ -42,22 +42,28 @@ if (existsSync(fil('recept.jpg'))) {
     ${logga(C.skog)}`, 960);
 }
 
-// Kortleken: receptlistan längst fram, veckomenyn och laga-läget lätt vinklade
+// Kortleken: receptlistan längst fram, veckomenyn och inköpslistan lätt vinklade
 // bakom — en känsla av hela appen på en bild.
-const kort = (src, { left, top, w, rot, z, dim = 1 }) => {
+// shift: skjuter skärmbilden åt höger i kortet. Bara kortets yttre kant syns
+// bakom telefonen i mitten; utan förskjutning visade inköpslistan där bara
+// antal och bockrutor, inte varunamnen. Det som skjuts in vänsterifrån döljs
+// bakom mittelefonen; fyllnaden har listans bakgrundsfärg.
+const kort = (src, { left, top, w, rot, z, dim = 1, shift = 0, fill = '#eef1e8' }) => {
   const h = Math.round(w * 2622 / 1206);
   return `
   <div style="position:absolute;left:${left}px;top:${top}px;padding:8px;border-radius:42px;background:#0d1f16;transform:rotate(${rot}deg);z-index:${z};box-shadow:0 22px 50px rgba(0,0,0,.35)">
-    <img src="${pathToFileURL(src).href}" style="display:block;width:${w}px;height:${h}px;border-radius:35px;object-fit:cover;object-position:top;filter:brightness(${dim})">
+    <div style="width:${w}px;height:${h}px;border-radius:35px;overflow:hidden;background:${fill};filter:brightness(${dim})">
+      <img src="${pathToFileURL(src).href}" style="display:block;width:${w}px;height:${h}px;margin-left:${shift}px;object-fit:cover;object-position:top">
+    </div>
   </div>`;
 };
-if (existsSync(fil('recept.jpg')) && existsSync(fil('laga.png'))) {
+if (existsSync(fil('recept.jpg')) && existsSync(fil('inkop.jpg'))) {
   const FRAM = 280, framH = Math.round(FRAM * 2622 / 1206);
-  STORIES['story-app-kortlek'] = page(C.lime, `
+  STORIES['story-kortlek-lista'] = page(C.lime, `
     ${veg('broccoli', C.skog, 'width:80px;left:16px;top:46px;transform:rotate(-10deg)', C.lime)}
     ${veg('avocado', C.skog, 'width:70px;right:20px;top:60px;transform:rotate(14deg)', C.lime)}
     ${kort(fil('veckomeny-bilder.jpg'), { left: 22, top: 150, w: 240, rot: -9, z: 1, dim: 0.92 })}
-    ${kort(fil('laga.png'), { left: 262, top: 150, w: 240, rot: 9, z: 1, dim: 0.92 })}
+    ${kort(fil('inkop.jpg'), { left: 262, top: 150, w: 240, rot: 9, z: 1, dim: 0.92, shift: 120 })}
     ${kort(fil('recept.jpg'), { left: (540 - FRAM) / 2 - 8, top: 118, w: FRAM, rot: 0, z: 2 })}
     <div style="position:absolute;left:0;right:0;top:${118 + framH + 16 + 22}px;display:flex;justify-content:center;align-items:center;gap:12px;z-index:3">
       <img src="${ICON}" style="width:50px;height:50px;border-radius:13px">
