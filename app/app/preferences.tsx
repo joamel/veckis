@@ -25,6 +25,7 @@ import { LANDING_TABS, DEFAULT_LANDING_TAB, getLandingTab, setLandingTab, type L
 import { preferences as str, instagramPromo } from '../src/lib/svenska';
 import { useExperiment } from '../src/lib/experiments';
 import { INSTAGRAM_URL } from '../src/lib/storeLinks';
+import { INSTAGRAM_TIP_FLAGS } from '../src/lib/instagramTip';
 import { useApiClient } from '../src/api/client';
 import { useDesign } from '../src/context/DesignContext';
 import { useBottomGap } from '../src/hooks/useBottomGap';
@@ -82,7 +83,9 @@ export default function PreferencesScreen() {
   }, []);
 
   async function handleResetTips() {
-    await Promise.all(TIP_FLAGS.map(k => SecureStore.deleteItemAsync(k).catch(() => {})));
+    // Dev-läget: även Instagram-tipsen, så de går att prova igen.
+    const flaggor = devMode ? [...TIP_FLAGS, ...INSTAGRAM_TIP_FLAGS] : [...TIP_FLAGS];
+    await Promise.all(flaggor.map(k => SecureStore.deleteItemAsync(k).catch(() => {})));
     showToast(str.toasts.tipsReset, 'neutral');
   }
 

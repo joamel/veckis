@@ -5,6 +5,9 @@ import { instagramPromo as str } from './svenska';
 
 const KEY = 'seen-instagram-after-planning';
 
+/** Flaggorna bakom Instagram-tipsen — nollställs med "Återställ introduktionstips" i dev-läget. */
+export const INSTAGRAM_TIP_FLAGS = [KEY, 'dismissed-instagram-menu-hint'] as const;
+
 type Confirm = (opts: {
   title: string; message: string;
   buttons: { label: string; icon?: string; style?: 'cancel'; onPress?: () => void }[];

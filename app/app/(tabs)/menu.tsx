@@ -296,6 +296,10 @@ export default function MenuScreen() {
   const confirm = useConfirm();
   // Instagram-tipset i tomläget: bara i dev-läget tills det släpps.
   const devMode = useExperiment('dev-mode');
+  // Ny nyckel varje gång fliken visas: Instagram-tipset läser då om sin flagga
+  // (t.ex. efter "Återställ introduktionstips") och glider in på nytt.
+  const [fokusRunda, setFokusRunda] = useState(0);
+  useFocusEffect(useCallback(() => { setFokusRunda(n => n + 1); }, []));
   const { householdId, householdName } = useHousehold();
   const { nyDesign } = useDesign();
   const { getToken } = useAuth();
@@ -1958,7 +1962,7 @@ export default function MenuScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      {devMode && !loading && weekOffset >= 0 && menuItems.length === 0 && <InstagramHint />}
+      {devMode && !loading && weekOffset >= 0 && menuItems.length === 0 && <InstagramHint key={fokusRunda} />}
       <SafeAreaView style={[s.container, nyDesign && s.nyContainer]} edges={nyDesign ? ['top', 'left', 'right'] : undefined}>
       {nyDesign ? (
         <NyHeader
