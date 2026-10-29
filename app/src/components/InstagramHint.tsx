@@ -39,7 +39,7 @@ export function InstagramHint({ top = '40%' }: { top?: `${number}%` | number }) 
           {/* Explicit bredd ur teckenantalet: Android mäter annars för smalt
               och kapar sista bokstaven (se android-text-clipping). */}
           <Text style={[s.title, { width: str.menuHintTitle.length * 8 + 8 }]} numberOfLines={1}>{str.menuHintTitle}</Text>
-          <Text style={[s.where, { width: str.menuHintWhere.length * 8 + 8 }]} numberOfLines={1}>{str.menuHintWhere}</Text>
+          <Text style={[s.title, { width: str.menuHintWhere.length * 8 + 8 }]} numberOfLines={1}>{str.menuHintWhere}</Text>
         </View>
       </Pressable>
       <Pressable onPress={stang} hitSlop={12} accessibilityLabel={str.close} style={s.close}>
@@ -59,6 +59,5 @@ const s = StyleSheet.create({
   inner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   // Tjockare text i en mindre ruta.
   title: { fontSize: 13, lineHeight: 16, color: SKOG, fontWeight: '800' },
-  where: { fontSize: 12, lineHeight: 15, color: SKOG, fontWeight: '600', opacity: 0.8 },
   close: { marginLeft: 6, padding: 2 },
 });
