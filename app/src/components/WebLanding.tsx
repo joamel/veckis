@@ -60,6 +60,7 @@ const ON_LIME = ny.skog;
 export function WebLanding() {
   const router = useRouter();
   const { width } = useWindowDimensions();
+  const bildB = Math.min(width - 40, 460);
   const narrow = width < 760;
   const s = useMemo(() => makeStyles(narrow), [narrow]);
 
@@ -106,7 +107,9 @@ export function WebLanding() {
           <Text style={s.sectionHeading}>{str.showcase.heading}</Text>
           <Text style={s.showBody}>{str.showcase.body}</Text>
           <View style={s.showRad}>
-            <Image source={APP_VYER} style={s.showBild} resizeMode="contain" accessibilityLabel={str.showcase.imageAlt} />
+            {/* Fasta mått ur fönsterbredden: procentbredd + aspectRatio gav en för
+                hög yta på mobilwebben, med bilden centrerad långt ned. */}
+            <Image source={APP_VYER} style={{ width: bildB, height: Math.round(bildB / APP_VYER_RATIO) }} resizeMode="contain" accessibilityLabel={str.showcase.imageAlt} />
             {Platform.OS === 'web' && (
               <View style={s.showVideo}>
                 {createElement('video', {
@@ -324,9 +327,8 @@ const makeStyles = (narrow: boolean) => StyleSheet.create({
   showSection: { paddingHorizontal: 20, paddingVertical: narrow ? 44 : 72, backgroundColor: ny.lime },
   showBody: { fontSize: narrow ? 15 : 17, lineHeight: narrow ? 23 : 27, color: BRAND.greenDark, textAlign: 'center', maxWidth: 620, alignSelf: 'center', marginTop: narrow ? -16 : -28, marginBottom: narrow ? 24 : 40 },
   showRad: { flexDirection: narrow ? 'column' : 'row', alignItems: 'center', justifyContent: 'center', gap: narrow ? 28 : 48 },
-  showBild: { width: narrow ? '100%' : 460, maxWidth: 460, aspectRatio: APP_VYER_RATIO },
   // Reelen som en telefon: mörk ram, rundade hörn.
-  showVideo: { width: narrow ? 240 : 300, aspectRatio: 9 / 16, borderRadius: 32, overflow: 'hidden', borderWidth: 8, borderColor: '#0d1f16', backgroundColor: '#0d1f16', shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 20, shadowOffset: { width: 0, height: 10 } },
+  showVideo: { width: narrow ? 240 : 300, height: narrow ? Math.round(240 * 16 / 9) : Math.round(300 * 16 / 9), borderRadius: 32, overflow: 'hidden', borderWidth: 8, borderColor: '#0d1f16', backgroundColor: '#0d1f16', shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 20, shadowOffset: { width: 0, height: 10 } },
 
   igSection: { paddingHorizontal: 20, paddingVertical: narrow ? 44 : 72, backgroundColor: BRAND.beige },
   igRubrik: { alignItems: 'center', maxWidth: 620, alignSelf: 'center' },
