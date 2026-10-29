@@ -1690,12 +1690,16 @@ export default function MenuScreen() {
     const tomVeckaNy = devMode && nyDesign && !anyScheduled;
     return (
       <>
-        {!anyScheduled && !isPastWeek && devMode && <InstagramHint />}
         <View style={[isWide ? s.daysRow : s.daysCol, nyDesign && s.nyDagar]}>
           {tomVeckaNy && (
             <View pointerEvents="none" style={s.tomVeckaMonster}>
-              {Array.from({ length: 14 }, (_, i) => (
-                <Ionicons key={i} name="restaurant-outline" size={52} color={ny.text} style={{ transform: [{ rotate: i % 2 ? '14deg' : '-12deg' }] }} />
+              {Array.from({ length: 8 }, (_, rad) => (
+                // Varannan rad förskjuten ett halvt steg: jämnt, men inte rutigt.
+                <View key={rad} style={[s.tomVeckaRad, rad % 2 === 1 && s.tomVeckaRadForskjuten]}>
+                  {Array.from({ length: 3 }, (_, k) => (
+                    <Ionicons key={k} name="restaurant-outline" size={44} color={ny.text} />
+                  ))}
+                </View>
               ))}
             </View>
           )}
@@ -1954,6 +1958,7 @@ export default function MenuScreen() {
 
   return (
     <View style={{ flex: 1 }}>
+      {devMode && !loading && weekOffset >= 0 && menuItems.length === 0 && <InstagramHint />}
       <SafeAreaView style={[s.container, nyDesign && s.nyContainer]} edges={nyDesign ? ['top', 'left', 'right'] : undefined}>
       {nyDesign ? (
         <NyHeader
@@ -3053,7 +3058,9 @@ const makeStyles = (c: Palette, ny: NyPalett) => StyleSheet.create({
   // ny.kort finns i båda paletterna: i mörkt läge ett tydligt steg ljusare än
   // bakgrunden, men mörkare än den planerade dagens platsLjus — samma trappa.
   nyDagTomRuta: { backgroundColor: ny.kort },
-  tomVeckaMonster: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, overflow: 'hidden', flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', alignContent: 'space-around', opacity: 0.07, zIndex: 0 },
+  tomVeckaMonster: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, overflow: 'hidden', paddingTop: 24, gap: 64, opacity: 0.07, zIndex: 0 },
+  tomVeckaRad: { flexDirection: 'row', justifyContent: 'space-around', paddingHorizontal: 24 },
+  tomVeckaRadForskjuten: { paddingHorizontal: 0, justifyContent: 'space-evenly', transform: [{ translateX: 40 }] },
   nyDagDropOutline: { borderRadius: 18 },
   nyDagHuvud: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 30, paddingHorizontal: 4 },
   // flexShrink: 0 hindrar texterna från att krympa mot flex-utfyllnaden, men

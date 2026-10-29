@@ -226,7 +226,7 @@ export default function PreferencesScreen() {
                 return (
                   <Pressable
                     key={t.key}
-                    style={[s.landingChip, active && s.landingChipActive]}
+                    style={[s.landingChip, s.landingChipWide, active && s.landingChipActive]}
                     onPress={() => {
                       setLandingTabState(t.key);
                       setLandingTab(t.key).catch(() => {});
@@ -346,7 +346,8 @@ const makeStyles = (c: Palette, nyD: boolean, ny: NyPalett) => StyleSheet.create
   versionFooter: { fontSize: 11, color: nyD ? ny.textDampad : c.textFaint, textAlign: 'center', marginTop: 16 },
   inlineChips: { flexDirection: 'row', gap: 6, flexShrink: 0 },
   landingChips: { flex: 1, flexDirection: 'row', gap: 6 },
-  landingChip: { flex: 1, justifyContent: 'center', flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 6, paddingVertical: 7, borderRadius: 16, backgroundColor: nyD ? ny.bricka : c.surfaceSubtle },
+  landingChipWide: { flex: 1, justifyContent: 'center', paddingHorizontal: 6, paddingVertical: 7 },
+  landingChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, backgroundColor: nyD ? ny.bricka : c.surfaceSubtle },
   landingChipActive: { backgroundColor: nyD ? ny.valdYta : c.primary },
   landingChipText: { fontSize: 12, fontWeight: '600', color: nyD ? ny.chipText : c.textMuted },
   landingChipTextActive: { color: nyD ? ny.lime : '#fff' },

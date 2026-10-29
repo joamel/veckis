@@ -10,7 +10,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApiClient, type MenuTemplate } from '../api/client';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../context/ConfirmContext';
-import { shareTemplate } from '../lib/shareWeekMenu';
 import { components as str, common } from '../lib/svenska';
 
 const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
@@ -186,11 +185,9 @@ export function MenuTemplatesModal({ visible, onClose, householdId, weekYear, we
                       : <Ionicons name="add-circle-outline" size={22} color={nyDesign ? ny.padYta : c.primary} />}
                   </Pressable>
                 )}
-                {/* Dela (som text) bara i dev-läge: mottagaren kan inte göra
-                    något med den i Handlis än. */}
-                {<Pressable style={s.tplShare} onPress={() => shareTemplate(tpl)} hitSlop={8} accessibilityRole="button" accessibilityLabel={str.menuTemplatesModal.shareA11y(tpl.name)}>
-                  <Ionicons name="share-outline" size={18} color={nyDesign ? ny.padYta : c.primary} />
-                </Pressable>}
+                {/* Dela borttaget 2026-10-29: mottagaren kan inte göra något med
+                    en delad mall i Handlis än. shareTemplate finns kvar i
+                    lib/shareWeekMenu.ts till dess. */}
                 <Pressable style={s.tplDelete} onPress={() => confirmDelete(tpl)} hitSlop={8} accessibilityRole="button" accessibilityLabel={str.menuTemplatesModal.deleteA11y(tpl.name)}>
                   <Ionicons name="trash-outline" size={18} color={nyDesign ? ny.textDampad : c.textFaint} />
                 </Pressable>

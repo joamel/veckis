@@ -124,6 +124,7 @@ export const common = {
 export const instagramPromo = {
   settingsRow:   'Följ oss på Instagram',
   menuHint:      'Ingen idé för veckan? Vi lägger upp färdiga veckomenyer på Instagram – importera dem till Handlis med Dela.',
+  menuHintShort: 'Färdiga veckomenyer på Instagram →',
   follow:        'Följ @handlis.app',
   close:         'Stäng',
   afterTemplateTitle:   'Snyggt planerat! 🎉',
