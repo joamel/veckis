@@ -16,10 +16,12 @@ import { nyLjus as ny, nyFont } from '../lib/nyDesign';
 const LOGO = require('../../assets/icon.png');
 const BOARD = require('../../assets/koncept-board.webp'); // krittavle-illustration (1536x850, 3 boxar)
 const BOARD_RATIO = 1536 / 850;
+// Bakgrunden genomskinlig (WebP med alfa, ~100 kB): som JPEG ändrades limen
+// av komprimeringen och bildens kant syntes mot sektionen.
 // "Så ser Handlis ut": tre vyer med riktiga matbilder (solfjädern ur
 // app/store/instagram/v44, beskuren) och Dela-reelen (public/, nedskalad
 // 540×960 ~0,5 MB; ljudlös så att den får spelas upp automatiskt).
-const APP_VYER = require('../../assets/landing/app-vyer.jpg');
+const APP_VYER = require('../../assets/landing/app-vyer.webp');
 const APP_VYER_RATIO = 720 / 820;
 const REEL_URL = '/reel-dela-till-handlis.mp4';
 const REEL_POSTER = '/reel-dela-till-handlis.jpg';
@@ -327,8 +329,8 @@ const makeStyles = (narrow: boolean) => StyleSheet.create({
   showSection: { paddingHorizontal: 20, paddingVertical: narrow ? 44 : 72, backgroundColor: ny.lime },
   showBody: { fontSize: narrow ? 15 : 17, lineHeight: narrow ? 23 : 27, color: BRAND.greenDark, textAlign: 'center', maxWidth: 620, alignSelf: 'center', marginTop: narrow ? -16 : -28, marginBottom: narrow ? 24 : 40 },
   showRad: { flexDirection: narrow ? 'column' : 'row', alignItems: 'center', justifyContent: 'center', gap: narrow ? 28 : 48 },
-  // Reelen som en telefon: mörk ram, rundade hörn.
-  showVideo: { width: narrow ? 240 : 300, height: narrow ? Math.round(240 * 16 / 9) : Math.round(300 * 16 / 9), borderRadius: 32, overflow: 'hidden', borderWidth: 8, borderColor: '#0d1f16', backgroundColor: '#0d1f16', shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 20, shadowOffset: { width: 0, height: 10 } },
+  // Reelen har en egen telefon i bild — bara rundade hörn här, ingen ram till.
+  showVideo: { width: narrow ? 240 : 300, height: narrow ? Math.round(240 * 16 / 9) : Math.round(300 * 16 / 9), borderRadius: 24, overflow: 'hidden', backgroundColor: ny.skog, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 20, shadowOffset: { width: 0, height: 10 } },
 
   igSection: { paddingHorizontal: 20, paddingVertical: narrow ? 44 : 72, backgroundColor: BRAND.beige },
   igRubrik: { alignItems: 'center', maxWidth: 620, alignSelf: 'center' },
