@@ -22,7 +22,7 @@ const BOARD_RATIO = 1536 / 850;
 // app/store/instagram/v44, beskuren) och Dela-reelen (public/, nedskalad
 // 540×960 ~0,5 MB; ljudlös så att den får spelas upp automatiskt).
 const APP_VYER = require('../../assets/landing/app-vyer.webp');
-const APP_VYER_RATIO = 720 / 820;
+const APP_VYER_RATIO = 760 / 1014;
 const REEL_URL = '/reel-dela-till-handlis.mp4';
 const REEL_POSTER = '/reel-dela-till-handlis.jpg';
 // Tre inlägg ur Instagram-flödet (app/store/instagram/v44), nedskalade.

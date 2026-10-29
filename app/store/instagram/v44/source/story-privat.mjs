@@ -85,6 +85,16 @@ if (existsSync(fil('recept.jpg')) && existsSync(fil('inkop.jpg'))) {
       <img src="${ICON}" style="width:50px;height:50px;border-radius:13px">
       ${brand(C.skog, 42)}
     </div>`, 960);
+
+  // Webbversionen till landningssidan: samma solfjäder utan grönsaker och logga,
+  // på GENOMSKINLIG bakgrund — skuggorna tonar ut mot sektionen i stället för
+  // att klippas i en rak kant. Fotograferas med omitBackground (se nedan).
+  STORIES['web-app-vyer'] = page('transparent', `
+    <div style="position:absolute;inset:0;transform:scale(0.86);transform-origin:50% 48%">
+    ${kort(fil('inkop.jpg'), { left: 18, top: 172, w: 230, rot: -12, z: 1, dim: 0.9 })}
+    ${kort(fil('veckomeny-bilder.jpg'), { left: 96, top: 146, w: 250, rot: -5, z: 2, dim: 0.95 })}
+    ${kort(fil('recept.jpg'), { left: 218, top: 118, w: FRAM, rot: 3, z: 3 })}
+    </div>`, 960);
 }
 
 const b = await browser();
@@ -97,7 +107,9 @@ for (const [namn, html] of Object.entries(STORIES)) {
   const f = join(tmp, `${namn}.html`); writeFileSync(f, html);
   await p.goto(pathToFileURL(f).href, { waitUntil: 'networkidle0' });
   await p.evaluate(() => document.fonts.ready);
-  await p.screenshot({ path: join(OUT, `${namn}.png`) });
+  // Webbversionen: genomskinlig, beskuren runt korten med luft för skuggorna.
+  if (namn === 'web-app-vyer') await p.screenshot({ path: join(OUT, `${namn}.png`), omitBackground: true, clip: { x: 0, y: 90, width: 540, height: 720 } });
+  else await p.screenshot({ path: join(OUT, `${namn}.png`) });
   console.log(namn);
 }
 await b.close();
