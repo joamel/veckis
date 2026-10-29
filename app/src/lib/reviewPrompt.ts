@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import { requireOptionalNativeModule } from 'expo-modules-core';
 import * as SecureStore from './secureStorage';
+import { claimNudge } from './nudges';
 
 // Antal avslutade "Jag handlar"-turer innan vi ber om betyg. Efter tredje
 // turen har man haft nytta av listan på riktigt — tidigare vore att be om
@@ -29,6 +30,9 @@ export async function recordShoppingTripAndMaybeAskForReview(): Promise<void> {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const StoreReview: typeof import('expo-store-review') = require('expo-store-review');
     if (!(await StoreReview.hasAction())) return;
+    // Max en påminnelse per session: har Instagram redan visats väntar
+    // betygsfrågan till nästa handling i en senare session.
+    if (!claimNudge('review')) return;
     await SecureStore.setItemAsync(ASKED_KEY, '1');
     await StoreReview.requestReview();
   } catch {

@@ -1,10 +1,11 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Animated, Linking, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable } from './Pressable';
 import { useOnceFlag } from '../hooks/useOnceFlag';
 import { INSTAGRAM_URL } from '../lib/storeLinks';
 import { instagramPromo as str } from '../lib/svenska';
+import { claimNudge } from '../lib/nudges';
 
 // Varumärkets lime med skogsgrön text — samma i ljust och mörkt läge, som
 // stämpeln på Instagram.
@@ -20,15 +21,19 @@ export function InstagramHint({ top = '40%' }: { top?: `${number}%` | number }) 
   const { seen, markSeen } = useOnceFlag('dismissed-instagram-menu-hint');
   const x = useRef(new Animated.Value(320)).current;
   const synlig = !!INSTAGRAM_URL && seen === false;
+  // Max en påminnelse per session (nudges.ts): har en annan redan visats
+  // syns fliken inte nu, men flaggan lämnas orörd till en senare session.
+  const [får, setFår] = useState(false);
 
   useEffect(() => {
-    if (!synlig) return;
+    if (!synlig || !claimNudge('instagram-tab')) return;
+    setFår(true);
     // Lite efter att veckan visats, så den märks som något eget.
     const t = setTimeout(() => Animated.spring(x, { toValue: 0, useNativeDriver: true, friction: 8, tension: 50 }).start(), 900);
     return () => clearTimeout(t);
   }, [synlig, x]);
 
-  if (!synlig) return null;
+  if (!synlig || !får) return null;
   const url = INSTAGRAM_URL as string;
   const stang = () => Animated.timing(x, { toValue: 320, duration: 220, useNativeDriver: true }).start(markSeen);
   return (
