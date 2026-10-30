@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractMetaText, isInstagramUrl, isTikTokUrl, ownPostImage } from './pageMeta';
+import { extractMetaText, isInstagramUrl, isTikTokUrl, ownRecipeImage } from './pageMeta';
 
 describe('isInstagramUrl', () => {
   it('känner igen inlägg, reels och kortlänkar', () => {
@@ -25,15 +25,15 @@ describe('isTikTokUrl', () => {
   });
 });
 
-describe('ownPostImage', () => {
-  const html = '<meta property="og:image" content="https://cdn.example/a.jpg?x=1&amp;y=2" />';
-  it('tar bilden från vårt eget konto när inlägget har ett recept', () => {
-    expect(ownPostImage(html, 'handlis.app', 1)).toBe('https://cdn.example/a.jpg?x=1&y=2');
+describe('ownRecipeImage', () => {
+  it('hittar bilden på titeln, för vårt eget konto', () => {
+    expect(ownRecipeImage(' Ugnsnachos ', 'handlis.app')).toBe('https://www.handlis.app/recept/ugnsnachos.jpg');
+    expect(ownRecipeImage('Ugnsnachos', 'Handlis.App')).not.toBeNull();
   });
-  it('tar aldrig andras bilder, och inte när det finns flera recept', () => {
-    expect(ownPostImage(html, 'annaslagar', 1)).toBeNull();
-    expect(ownPostImage(html, undefined, 1)).toBeNull();
-    expect(ownPostImage(html, 'handlis.app', 5)).toBeNull();
+  it('ingen bild för andras inlägg eller okända recept', () => {
+    expect(ownRecipeImage('Ugnsnachos', 'annaslagar')).toBeNull();
+    expect(ownRecipeImage('Ugnsnachos', undefined)).toBeNull();
+    expect(ownRecipeImage('Lasagne', 'handlis.app')).toBeNull();
   });
 });
 

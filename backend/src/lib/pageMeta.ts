@@ -40,19 +40,23 @@ function decodeEntities(s: string): string {
     .replace(/&amp;/g, '&');
 }
 
-/** Vårt eget konto: bara dess bilder följer med vid import. */
+/** Vårt eget konto: bara dess recept får en bild vid import. */
 const OWN_INSTAGRAM_ACCOUNT = 'handlis.app';
 
 /**
- * Bilden till ett Instagram-recept, bara för våra egna inlägg (andras bilder får
- * vi inte kopiera) och bara med ett enda recept: i en veckomeny hör omslaget inte
- * till något av dem. Länken är signerad och går ut, så den flyttas till vår
- * bildlagring när receptet sparas.
+ * Bilder till recepten vi själva lägger upp, per titel (gemener). Filerna ligger
+ * i app/public/recept/ och kopieras till Cloudinary när receptet sparas. Så får
+ * varje recept i en veckomeny sin egen bild, utan att vi beror på Instagrams
+ * bildlänkar och utan omslagets text. Nytt recept: lägg filen där och en rad här.
  */
-export function ownPostImage(html: string, account: string | undefined, recipeCount: number): string | null {
-  if (account?.toLowerCase() !== OWN_INSTAGRAM_ACCOUNT || recipeCount !== 1) return null;
-  const m = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i);
-  return m ? decodeEntities(m[1]) : null;
+const OWN_RECIPE_IMAGES: Record<string, string> = {
+  ugnsnachos: 'https://www.handlis.app/recept/ugnsnachos.jpg',
+};
+
+/** Bilden till ett recept från vårt eget konto. Andras inlägg får aldrig någon. */
+export function ownRecipeImage(title: string, account: string | undefined): string | null {
+  if (account?.toLowerCase() !== OWN_INSTAGRAM_ACCOUNT) return null;
+  return OWN_RECIPE_IMAGES[title.toLowerCase().trim()] ?? null;
 }
 
 /**

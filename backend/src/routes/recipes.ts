@@ -22,7 +22,7 @@ import * as Sentry from '@sentry/node';
 import { uploadRecipeImage, deleteRecipeImage, type UploadResult } from '../lib/imageUpload';
 import { recipeAbuseLimiter, parseTextLimiter, aiDailyUserLimiter } from '../lib/rateLimits';
 import { safeFetch } from '../lib/ssrfGuard';
-import { extractMetaText, isInstagramUrl, isTikTokUrl, LINK_PREVIEW_USER_AGENT, ownPostImage } from '../lib/pageMeta';
+import { extractMetaText, isInstagramUrl, isTikTokUrl, LINK_PREVIEW_USER_AGENT, ownRecipeImage } from '../lib/pageMeta';
 import { tolkaJsonSvar, saknarReceptinnehåll, InteJsonError, textUr } from '../lib/aiJson';
 import { bokförAiKostnad } from '../lib/aiCost';
 import { taFotokvot, MAX_FOTON_PER_MANAD } from '../lib/photoQuota';
@@ -322,9 +322,6 @@ recipesRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async 
           where: { id: recipe.id },
           data: { imageUrl: rehosted.url, imagePublicId: rehosted.publicId },
         }).catch(() => {});
-      } else if (/cdninstagram|fbcdn/.test(externalImage)) {
-        // Instagrams länk går ut: hellre ingen bild än en som snart är trasig.
-        void prisma.recipe.update({ where: { id: recipe.id }, data: { imageUrl: null } }).catch(() => {});
       }
     });
   }
@@ -1005,11 +1002,10 @@ async function scrapeRecipe(url: string): Promise<{ recipes: ScrapedRecipe[]; vi
       console.log(`[instagram] bildtext ${caption.length} tecken → ${recept.length} recept`);
       // Ingen bild från andras inlägg: Instagrams bildlänkar är signerade och går
       // ut, deras CDN nekar ofta hämtning utifrån, och bilden är inte vår. Våra
-      // egna inlägg är undantaget (ownPostImage).
+      // egna recept får sin bild ur vår lista (ownRecipeImage).
       // og:title är "Namn (@konto) • Instagram …".
       const konto = caption.match(/\(@([\w.]{1,30})\)/)?.[1];
-      const imageUrl = ownPostImage(html, konto, recept.length);
-      return { viaAi: true, recipes: recept.map(r => ({ ...r, imageUrl, sourceName: konto ? `@${konto}` : null })) };
+      return { viaAi: true, recipes: recept.map(r => ({ ...r, imageUrl: ownRecipeImage(r.title, konto), sourceName: konto ? `@${konto}` : null })) };
     } catch (err) {
       if (err instanceof Anthropic.APIError) throw err;
       throw new Error(LANK_FEL);
