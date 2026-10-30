@@ -63,6 +63,7 @@ export function WebLanding() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const bildB = Math.min(width - 40, 460);
+  const tavlaB = Math.min(width - 40, 960);
   const narrow = width < 760;
   const s = useMemo(() => makeStyles(narrow), [narrow]);
 
@@ -189,7 +190,8 @@ export function WebLanding() {
           ) : (
             <Image
               source={BOARD}
-              style={s.boardImg}
+              // Fasta mått: procentbredd + aspectRatio gav en för hög yta på webben.
+              style={[s.boardImg, { width: tavlaB, height: Math.round(tavlaB / BOARD_RATIO) }]}
               resizeMode="contain"
               accessibilityLabel={str.flow.alt}
             />
@@ -366,7 +368,7 @@ const makeStyles = (narrow: boolean) => StyleSheet.create({
   boardInner: { width: '100%', maxWidth: 1000, alignSelf: 'center', alignItems: 'center' },
   boardHeading: { fontSize: narrow ? 24 : 32, fontFamily: nyFont.fet, fontWeight: 'normal', color: '#fff', textAlign: 'center', letterSpacing: -0.2 },
   boardUnderline: { width: 90, height: 3, borderRadius: 2, backgroundColor: BRAND.terra, marginTop: 14, marginBottom: narrow ? 26 : 36 },
-  boardImg: { width: '100%', maxWidth: 960, aspectRatio: BOARD_RATIO, borderRadius: 14, alignSelf: 'center' },
+  boardImg: { borderRadius: 14, alignSelf: 'center' },
   aboutText: { maxWidth: 640, marginTop: narrow ? 26 : 36, gap: 14 },
   aboutP: { fontSize: narrow ? 15 : 17, lineHeight: narrow ? 24 : 28, color: BRAND.light },
   pagerOuter: { width: '100%', maxWidth: 380, alignSelf: 'center' },
