@@ -47,7 +47,7 @@ export const recipe = (r, i, foot = '📸 Ta en skärmbild → spara i Handlis')
   <div style="position:absolute;inset:0;padding:30px 32px 0;display:flex;flex-direction:column">
     <div style="position:relative">
       ${veg(r.veg, DAY_VEG[i], 'width:120px;right:-40px;top:-30px;transform:rotate(14deg)', DAY_BG[i])}
-      <div class="kick" style="color:${C.grön}">${r.day} · ${r.minutes} min · 4 portioner</div>
+      <div class="kick" style="color:${C.grön}">${r.day ? `${r.day} · ` : ''}${r.minutes} min · 4 portioner</div>
       <div class="hand" style="color:${C.skog};font-size:54px;margin-top:4px;max-width:380px">${r.title}</div>
     </div>
     <div style="background:#fff;border-radius:16px;padding:13px 18px;margin-top:12px;color:${C.skog}">
