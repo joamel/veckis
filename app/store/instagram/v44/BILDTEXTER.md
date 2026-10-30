@@ -93,7 +93,7 @@ Filer: `5-reel-dela-till-handlis.mp4` (melodi), `-tyst.mp4` (välj populärt lju
 ---
 
 ## Lör 31/10 – Sugen på nachos?
-Mapp: `6-nachos-helg/` (3 bilder: omslag med foto, receptet, avslutning). Omslaget byggs med `source/fredag.mjs`.
+Mapp: `6-nachos-dela/` (3 bilder: omslag med foto, receptet, avslutning). Omslaget byggs med `source/fredag.mjs`.
 
 > Vad blir det till helgmyset? 🧀
 > Nachos direkt ur ugnsformen – klart på 25 minuter. Tryck Dela och välj Handlis, så ligger receptet i appen 💚
