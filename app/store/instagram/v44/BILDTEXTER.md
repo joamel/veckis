@@ -89,3 +89,19 @@ Filer: `5-reel-dela-till-handlis.mp4` (melodi), `-tyst.mp4` (välj populärt lju
 > Prova med vår veckomeny i flödet 👇 Länk i bion.
 >
 > #veckomeny #recept #middagstips #storhandla #inköpslista #handlis
+
+---
+
+## Fre 30/10 – Fredagsmys? (ugnsnachos)
+Mapp: `6-fredagsmys/` (3 bilder: omslag med foto, receptet, avslutning). Omslaget byggs med `source/fredag.mjs`.
+
+> Vad blir det till fredagsmys hos er? 🧀
+> Ugnsnachos direkt ur formen – klart på 25 minuter.
+>
+> 400 g nötfärs, 1 påse tacokrydda, 1 dl vatten, 200 g tortillachips, 1 burk tacosås, 150 g riven ost, 2 tomater, 1 avokado, 2 dl gräddfil.
+>
+> Sätt ugnen på 225 °C. Bryn färsen med kryddan och vattnet. Lägg chips, färs, tacosås och ost i en form och gratinera 8–10 min. Toppa med tomat, avokado och gräddfil.
+>
+> Spara receptet i Handlis: tryck Dela och välj Handlis 💚
+>
+> #fredagsmys #nachos #fredagsmat #middagstips #tacos #handlis
