@@ -1967,9 +1967,10 @@ export const landing = {
     heading:     'Om Handlis',
     paragraphs: [
       'Idén till Handlis har funnits länge. Storhandling och veckoplanering har alltid känts som ett nödvändigt ont – och alltför ofta blev det att springa fram och tillbaka i affären.',
-      'Genom åren har det blivit många halvhjärtade försök till en app eller hemsida, men tidsbrist, jobb och livet kom alltid emellan. Nu fanns äntligen förutsättningarna att ta projektet i mål, och det senaste halvåret har gått åt många sena kvällar och helger.',
+      'I många år var lösningen en vanlig att göra-app i mobilen, där jag för hand gjorde precis det som Handlis gör i dag: valde veckans recept ur en lista, bockade av det som redan fanns hemma, sorterade varorna i kategorier, lade till basvarorna i efterhand och försökte slå ihop dubbletterna. Det fungerade – men det tog tid, och det var lätt att missa något.',
+      'Genom åren blev det många halvhjärtade försök till en riktig app, men tidsbrist, jobb och livet kom alltid emellan. Nu fanns äntligen förutsättningarna att ta projektet i mål, och det senaste halvåret har gått åt många sena kvällar och helger.',
       'Handlis har formats under resans gång, tillsammans med fantastiska bollplank och testare. Den 6 oktober var en milstolpe: appen kom ut på Google Play, och strax efter i App Store.',
-      'Nu fortsätter resan mot en så välputsad app som möjligt – en självklarhet i så många hushåll som möjligt.',
+      'Målet är att Handlis ska förenkla vardagen för fler, på samma sätt som den har förenklat vår – och bli en självklarhet i så många hushåll som möjligt.',
     ],
   },
   // Konceptskissens alt-text (används i "Om Handlis").
