@@ -19,7 +19,7 @@ const html = page(C.skog, `
     <div class="sub" style="color:#fff;margin-top:4px">Nachos direkt ur ugnsformen</div>
   </div>
   <!-- Dela-pilen → Handlis, utan ord: en liten instruktion mitt i bilden. -->
-  <div style="position:absolute;left:50%;top:76%;transform:translate(-50%,-50%);display:flex;align-items:center;gap:16px;padding:14px 22px;border-radius:26px;background:rgba(29,59,46,.88);box-shadow:0 10px 30px rgba(0,0,0,.35)">
+  <div style="position:absolute;left:50%;top:83%;transform:translate(-50%,-50%);display:flex;align-items:center;gap:16px;padding:14px 22px;border-radius:26px;background:rgba(29,59,46,.88);box-shadow:0 10px 30px rgba(0,0,0,.35)">
     <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round"><path d="M22 3 2 9.6l8.4 3.9L14.5 22 22 3Z"/><path d="M22 3 10.4 13.5"/></svg>
     <div style="color:${C.lime};font-weight:700;font-size:30px;line-height:1">→</div>
     <img src="${ICON}" style="width:60px;height:60px;border-radius:15px">
