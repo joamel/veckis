@@ -1,17 +1,19 @@
 /** Det som alltid finns hemma, och som reglaget överst i inventeringen gäller. */
-const BASICS = new Set(['salt', 'flingsalt', 'havssalt', 'bordssalt', 'peppar', 'svartpeppar', 'vitpeppar', 'vatten']);
+const BASICS = new Set(['salt', 'flingsalt', 'havssalt', 'bordssalt', 'peppar', 'svartpeppar', 'vitpeppar', 'vatten', 'olja', 'matolja', 'rapsolja', 'olivolja']);
 
 /** Ord som får stå runt basvarorna utan att raden blir något annat. */
 const FILLER = new Set([
   'och', 'eller', 'efter', 'smak', 'lite', 'ev', 'eventuellt', 'till', 'servering',
   'nymald', 'nymalen', 'malen', 'grovmalen', 'grovt', 'grov', 'fint', 'fin',
   'kokande', 'kallt', 'kall', 'ljummet', 'ljum', 'varmt', 'varm', 'hett',
+  'neutral', 'att', 'steka', 'stekning', 'i',
 ]);
 
 /**
- * Är raden bara salt, peppar eller vatten? Hela ord och ALLA ord måste passa:
- * "salt och peppar" och "kokande vatten" räknas, men inte "pepparrot",
- * "saltgurka", "kokosvatten" eller "smör och salt" — det sista ska handlas.
+ * Är raden bara salt, peppar, vatten eller vanlig olja? Hela ord och ALLA ord
+ * måste passa: "salt och peppar" och "olja till stekning" räknas, men inte
+ * "pepparrot", "saltgurka", "kokosvatten", "sesamolja" eller "smör och salt"
+ * — det sista ska handlas.
  */
 export function isPantryBasic(name: string): boolean {
   const words = name.toLowerCase().split(/[^a-zåäöéü]+/).filter(Boolean);
