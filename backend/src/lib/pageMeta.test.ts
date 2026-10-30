@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractMetaText, isInstagramUrl, isTikTokUrl, ownRecipeImage } from './pageMeta';
+import { extractMetaText, isInstagramUrl, isTikTokUrl, ownRecipeImage, instagramLinkIn, instagramAccount } from './pageMeta';
 
 describe('isInstagramUrl', () => {
   it('känner igen inlägg, reels och kortlänkar', () => {
@@ -22,6 +22,23 @@ describe('isTikTokUrl', () => {
   it('släpper igenom andra sajter och skräp', () => {
     expect(isTikTokUrl('https://nottiktok.com/@a/video/1')).toBe(false);
     expect(isTikTokUrl('inte en länk')).toBe(false);
+  });
+});
+
+describe('instagramLinkIn', () => {
+  it('hittar länken i en delad bildtext', () => {
+    expect(instagramLinkIn('Ugnsnachos\n400 g nötfärs\nhttps://www.instagram.com/p/ABC123/?igsh=xyz')).toBe('https://www.instagram.com/p/ABC123/?igsh=xyz');
+  });
+  it('ignorerar andra länkar och text utan länk', () => {
+    expect(instagramLinkIn('källa: https://www.ica.se/recept/x/')).toBeNull();
+    expect(instagramLinkIn('Ugnsnachos')).toBeNull();
+  });
+});
+
+describe('instagramAccount', () => {
+  it('läser kontot ur metatexten', () => {
+    expect(instagramAccount('Handlis (@handlis.app) • Instagram photos')).toBe('handlis.app');
+    expect(instagramAccount('ingen här')).toBeUndefined();
   });
 });
 

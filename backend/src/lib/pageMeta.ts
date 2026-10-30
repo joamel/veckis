@@ -40,6 +40,20 @@ function decodeEntities(s: string): string {
     .replace(/&amp;/g, '&');
 }
 
+/** Instagram-länken i en delad bildtext, om det finns någon. */
+export function instagramLinkIn(text: string): string | null {
+  for (const m of text.match(/https?:\/\/\S+/gi) ?? []) {
+    const url = m.replace(/[),.]+$/, '');
+    if (isInstagramUrl(url)) return url;
+  }
+  return null;
+}
+
+/** Kontot ur Instagrams metatext. og:title är "Namn (@konto) • Instagram …". */
+export function instagramAccount(metaText: string): string | undefined {
+  return metaText.match(/\(@([\w.]{1,30})\)/)?.[1];
+}
+
 /** Vårt eget konto: bara dess recept får en bild vid import. */
 const OWN_INSTAGRAM_ACCOUNT = 'handlis.app';
 

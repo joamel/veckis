@@ -652,6 +652,7 @@ export default function RecipesScreen() {
         description: parsed.description,
         instructions: parsed.instructions,
         source: 'ai_paste',
+        imageUrl: parsed.imageUrl ?? null,
         // Fanns en länk i texten (Instagram-bildtexten har länken till
         // inlägget) blir den källan — "Original" leder tillbaka dit.
         sourceUrl: anyLink(pasteText),

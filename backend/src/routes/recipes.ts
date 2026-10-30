@@ -22,7 +22,7 @@ import * as Sentry from '@sentry/node';
 import { uploadRecipeImage, deleteRecipeImage, type UploadResult } from '../lib/imageUpload';
 import { recipeAbuseLimiter, parseTextLimiter, aiDailyUserLimiter } from '../lib/rateLimits';
 import { safeFetch } from '../lib/ssrfGuard';
-import { extractMetaText, isInstagramUrl, isTikTokUrl, LINK_PREVIEW_USER_AGENT, ownRecipeImage } from '../lib/pageMeta';
+import { extractMetaText, isInstagramUrl, isTikTokUrl, LINK_PREVIEW_USER_AGENT, ownRecipeImage, instagramLinkIn, instagramAccount } from '../lib/pageMeta';
 import { tolkaJsonSvar, saknarReceptinnehåll, InteJsonError, textUr } from '../lib/aiJson';
 import { bokförAiKostnad } from '../lib/aiCost';
 import { taFotokvot, MAX_FOTON_PER_MANAD } from '../lib/photoQuota';
@@ -243,7 +243,7 @@ recipesRouter.post('/', requireAuth, requireHouseholdMember, asyncHandler(async 
   // ner + ladda upp) och kunde störa det direkt efterföljande getRecipe. Vi
   // skapar receptet snabbt med käll-URL:en och re-hostar i BAKGRUNDEN nedan.
   const externalImage =
-    recipeData.source === 'url_import' && recipeData.imageUrl && !recipeData.imageUrl.includes('res.cloudinary.com')
+    (recipeData.source === 'url_import' || recipeData.source === 'ai_paste') && recipeData.imageUrl && !recipeData.imageUrl.includes('res.cloudinary.com')
       ? recipeData.imageUrl
       : null;
 
@@ -645,6 +645,24 @@ async function delaUppRecept(text: string): Promise<string[] | null> {
 
 const FOR_MANGA_RECEPT = 'Texten innehöll för mycket för att läsa på en gång. Prova med några recept i taget.';
 
+/**
+ * Delning från Instagram kommer ofta som hela bildtexten med länken i, och når
+ * då den här vägen i stället för länkimporten. Vårt eget konto syns bara på
+ * inläggets sida, så den hämtas — men bara när titeln finns i vår bildlista.
+ */
+async function medEgnaBilder(recept: ScrapedRecipe[], text: string): Promise<ScrapedRecipe[]> {
+  const link = instagramLinkIn(text);
+  if (!link || !recept.some(r => ownRecipeImage(r.title, 'handlis.app'))) return recept;
+  try {
+    const res = await safeFetch(link, { headers: { 'User-Agent': LINK_PREVIEW_USER_AGENT }, signal: AbortSignal.timeout(5000) });
+    if (!res.ok) return recept;
+    const konto = instagramAccount(extractMetaText(await res.text()));
+    return recept.map(r => ({ ...r, imageUrl: ownRecipeImage(r.title, konto) }));
+  } catch {
+    return recept;
+  }
+}
+
 // POST /api/recipes/parse-text
 recipesRouter.post('/parse-text', parseTextLimiter, requireAuth, aiDailyUserLimiter, asyncHandler(async (req, res) => {
   const body = z.object({ text: z.string().min(1) }).safeParse(req.body);
@@ -655,7 +673,7 @@ recipesRouter.post('/parse-text', parseTextLimiter, requireAuth, aiDailyUserLimi
   if (!anthropic) { res.status(503).json({ error: 'AI-tolkning inte tillgänglig' }); return; }
 
   try {
-    const alla = await parseRecipeTextWithAI(body.data.text, { writeOwnRecipe: true });
+    const alla = await medEgnaBilder(await parseRecipeTextWithAI(body.data.text, { writeOwnRecipe: true }), body.data.text);
     res.json({ ...alla[0], recipes: alla });
   } catch (err) {
     if (err instanceof InteJsonError) {
@@ -1003,8 +1021,7 @@ async function scrapeRecipe(url: string): Promise<{ recipes: ScrapedRecipe[]; vi
       // Ingen bild från andras inlägg: Instagrams bildlänkar är signerade och går
       // ut, deras CDN nekar ofta hämtning utifrån, och bilden är inte vår. Våra
       // egna recept får sin bild ur vår lista (ownRecipeImage).
-      // og:title är "Namn (@konto) • Instagram …".
-      const konto = caption.match(/\(@([\w.]{1,30})\)/)?.[1];
+      const konto = instagramAccount(caption);
       return { viaAi: true, recipes: recept.map(r => ({ ...r, imageUrl: ownRecipeImage(r.title, konto), sourceName: konto ? `@${konto}` : null })) };
     } catch (err) {
       if (err instanceof Anthropic.APIError) throw err;
