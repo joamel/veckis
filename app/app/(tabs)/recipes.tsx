@@ -616,7 +616,9 @@ export default function RecipesScreen() {
       }
     } catch (err) {
       // Scrape failed (no recipe data, fetch error, timeout…) — don't dead-end;
-      // offer to add the recipe manually instead.
+      // offer to add the recipe manually instead. Länkarket stängs först: annars
+      // låg det kvar bakom felrutan, med en länk som ändå inte går att läsa.
+      stangSkapaSheet();
       confirm({
         title: str.errors.parseFailed.title,
         message: str.errors.parseFailed.message(err instanceof Error ? err.message : str.linkUnreadable),

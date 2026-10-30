@@ -837,7 +837,7 @@ export const recipes = {
     },
     parseFailed: {
       title:   'Kunde inte läsa receptet',
-      message: (err: string) => `${err}\n\nVill du lägga till receptet manuellt istället?`,
+      message: (err: string) => err,
       manual:  'Lägg till manuellt',
     },
     noIngredients: {

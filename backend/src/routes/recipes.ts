@@ -492,7 +492,12 @@ recipesRouter.post('/from-url', recipeAbuseLimiter, requireAuth, aiDailyUserLimi
     // Bakåtkompatibelt som fotoflödet: äldre appar läser toppnivån (= första).
     res.json({ ...första, recipes: alla });
   } catch (err) {
-    const { status, error } = aiErrorResponse(err, AI_UNAVAILABLE_RECIPE, 'Kunde inte hämta receptet');
+    // AI-fel och "för långt" har egna besked; allt annat (nekad hämtning, timeout,
+    // nätverk) är samma sak för användaren, och råa fel ska aldrig visas.
+    const egetBesked = err instanceof Anthropic.APIError || (err instanceof Error && err.message === FOR_MANGA_RECEPT);
+    const { status, error } = egetBesked
+      ? aiErrorResponse(err, AI_UNAVAILABLE_RECIPE, LANK_FEL)
+      : { status: 422, error: LANK_FEL };
     res.status(status).json({ error });
   }
 }));
@@ -943,8 +948,9 @@ function parseInstructions(raw: any): string | null {
   return steps.map((s, i) => `${i + 1}. ${s}`).join('\n').slice(0, 8000);
 }
 
-const INSTAGRAM_FEL = 'Instagram visar inte inlägget för oss – kopiera bildtexten och klistra in den i stället.';
-const TIKTOK_FEL = 'TikTok visar inte receptet för oss. Kopiera videons beskrivning och klistra in den här – eller ta en skärmbild på receptet och välj Fota eller välj bild.';
+// Samma besked oavsett sajt: för användaren är det samma situation, och det
+// viktiga är vad man kan göra i stället.
+const LANK_FEL = 'Sidan visar inte receptet för oss. Prova att kopiera receptet och klistra in det direkt i Handlis, eller ta en skärmbild på receptet och importera den som en bild.';
 
 /**
  * TikTok-video via den officiella oEmbed-tjänsten: title är videons beskrivning.
@@ -963,12 +969,12 @@ async function scrapeTikTok(url: string): Promise<{ recipes: ScrapedRecipe[]; vi
       if (typeof data.author_unique_id === 'string' && data.author_unique_id) konto = `@${data.author_unique_id}`;
     }
   } catch { /* samma besked som när texten saknas */ }
-  if (caption.length < 40) throw new Error(TIKTOK_FEL);
+  if (caption.length < 40) throw new Error(LANK_FEL);
   try {
     const recept = await parseRecipeTextWithAI(caption);
     return { viaAi: true, recipes: recept.map(r => ({ ...r, imageUrl: null, sourceName: konto })) };
   } catch (err) {
-    if (err instanceof InteJsonError) throw new Error(TIKTOK_FEL);
+    if (err instanceof InteJsonError) throw new Error(LANK_FEL);
     throw err;
   }
 }
@@ -986,10 +992,10 @@ async function scrapeRecipe(url: string): Promise<{ recipes: ScrapedRecipe[]; vi
         headers: { 'User-Agent': LINK_PREVIEW_USER_AGENT },
         signal: AbortSignal.timeout(10000),
       });
-      if (!res.ok) throw new Error(INSTAGRAM_FEL);
+      if (!res.ok) throw new Error(LANK_FEL);
       const html = await res.text();
       const caption = extractMetaText(html);
-      if (caption.length < 40) throw new Error(INSTAGRAM_FEL);
+      if (caption.length < 40) throw new Error(LANK_FEL);
       const recept = await parseRecipeTextWithAI(caption);
       // Felsökning (2026-10-26): lokalt ger en veckomeny-bildtext fem recept, i
       // produktion ett — Instagram kan ge datacenter en kortare text.
@@ -1000,8 +1006,9 @@ async function scrapeRecipe(url: string): Promise<{ recipes: ScrapedRecipe[]; vi
       // og:title är "Namn (@konto) • Instagram …".
       const konto = caption.match(/\(@([\w.]{1,30})\)/)?.[1];
       return { viaAi: true, recipes: recept.map(r => ({ ...r, imageUrl: null, sourceName: konto ? `@${konto}` : null })) };
-    } catch {
-      throw new Error(INSTAGRAM_FEL);
+    } catch (err) {
+      if (err instanceof Anthropic.APIError) throw err;
+      throw new Error(LANK_FEL);
     }
   }
 
@@ -1011,7 +1018,7 @@ async function scrapeRecipe(url: string): Promise<{ recipes: ScrapedRecipe[]; vi
     headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Veckis/1.0; +https://veckis.app)' },
     signal: AbortSignal.timeout(10000),
   });
-  if (!res.ok) throw new Error(`Kunde inte hämta sidan (${res.status})`);
+  if (!res.ok) throw new Error(LANK_FEL);
   const html = await res.text();
 
   // Extract JSON-LD blocks
@@ -1034,13 +1041,13 @@ async function scrapeRecipe(url: string): Promise<{ recipes: ScrapedRecipe[]; vi
     // Metataggarna först: htmlTillText slänger <head>, där sammanfattningen
     // (och på vissa sajter hela receptet) ligger.
     const text = [extractMetaText(html), htmlTillText(html)].filter(Boolean).join('\n\n');
-    if (!text) throw new Error('Hittade inget recept på sidan');
+    if (!text) throw new Error(LANK_FEL);
     const recept = await parseRecipeTextWithAI(text);
     // Sidans bild hör till det första (oftast enda) receptet.
     if (!recept[0].imageUrl) recept[0].imageUrl = extractOgImage(html);
     return { viaAi: true, recipes: recept };
   } catch (err) {
-    if (err instanceof InteJsonError) throw new Error('Hittade inget recept på sidan');
+    if (err instanceof InteJsonError) throw new Error(LANK_FEL);
     throw err;
   }
 }
