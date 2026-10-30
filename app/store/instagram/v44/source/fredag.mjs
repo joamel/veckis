@@ -1,11 +1,11 @@
-// "Fredagsmys?": omslag med matfoto + ugnsnachosen ur veckomenyn (bild 2–3 är
-// kopior av 1-veckans-recept/8–9).
+// "Fredagsmys?": omslag med matfoto + ugnsnachosen ur veckomenyn, med uppmaningen
+// att dela receptet till Handlis. Bild 3 är en kopia av 1-veckans-recept/9.
 //   TOOLS=<mapp med puppeteer-core> node app/store/instagram/v44/source/fredag.mjs
-import { writeFileSync, mkdtempSync } from 'node:fs';
 import { join, dirname } from 'node:path';
-import { tmpdir } from 'node:os';
 import { pathToFileURL, fileURLToPath } from 'node:url';
-import { C, OUT, stamp, page, browser } from './stil.mjs';
+import { C, OUT, stamp, page, browser, renderCarousel } from './stil.mjs';
+import { recipe } from './veckomeny.mjs';
+import { RECIPES } from './recipes.mjs';
 
 const DIR = dirname(fileURLToPath(import.meta.url));
 const FOTO = pathToFileURL(join(DIR, 'fredag', 'nachos.jpg')).href;
@@ -16,16 +16,10 @@ const html = page(C.skog, `
   <div style="position:absolute;left:0;right:0;top:40px;text-align:center">
     <div class="kick" style="color:${C.lime}">Fredag · 25 min</div>
     <div class="hand" style="color:#fff;font-size:92px;margin-top:6px">Fredagsmys?</div>
-    <div class="sub" style="color:#fff;margin-top:4px">Ugnsnachos direkt ur formen – svep för receptet →</div>
+    <div class="sub" style="color:#fff;margin-top:4px">Ugnsnachos direkt ur formen. Tryck Dela → välj Handlis</div>
   </div>
   ${stamp('right:30px;bottom:34px', C.lime, C.skog)}`);
 
 const b = await browser();
-const p = await b.newPage();
-await p.setViewport({ width: 540, height: 675, deviceScaleFactor: 2 });
-const f = join(mkdtempSync(join(tmpdir(), 'handlis-fredag-')), 'c.html');
-writeFileSync(f, html);
-await p.goto(pathToFileURL(f).href, { waitUntil: 'networkidle0' });
-await p.evaluate(() => document.fonts.ready);
-await p.screenshot({ path: join(OUT, '6-fredagsmys', '1.png') });
+await renderCarousel(b, '6-fredagsmys-dela', [html, recipe(RECIPES[4], 4, '📲 Tryck Dela → välj Handlis')]);
 await b.close();

@@ -43,7 +43,7 @@ const howTo = () => page(C.mint, `
       <div class="row" style="background:#fff;color:${C.skog};align-items:flex-start"><span style="font-size:24px;line-height:1">${e}</span><span>${t}<span style="display:block;font-size:14px;color:#5f7a6a;margin-top:3px">${d}</span></span></div>`).join('')}
   </div>`);
 
-const recipe = (r, i) => page(DAY_BG[i], `
+export const recipe = (r, i, foot = '📸 Ta en skärmbild → spara i Handlis') => page(DAY_BG[i], `
   <div style="position:absolute;inset:0;padding:30px 32px 0;display:flex;flex-direction:column">
     <div style="position:relative">
       ${veg(r.veg, DAY_VEG[i], 'width:120px;right:-40px;top:-30px;transform:rotate(14deg)', DAY_BG[i])}
@@ -59,7 +59,7 @@ const recipe = (r, i) => page(DAY_BG[i], `
       <ol class="steps">${r.steps.map(s => `<li>${s}</li>`).join('')}</ol>
     </div>
   </div>
-  <div style="position:absolute;left:32px;right:32px;bottom:20px;display:flex;justify-content:space-between;align-items:center;font-weight:700;color:${C.skog}"><span style="font-size:18px">📸 Ta en skärmbild → spara i Handlis</span><span style="font-size:13px;color:${C.grön}">@handlis.app</span></div>`);
+  <div style="position:absolute;left:32px;right:32px;bottom:20px;display:flex;justify-content:space-between;align-items:center;font-weight:700;color:${C.skog}"><span style="font-size:18px">${foot}</span><span style="font-size:13px;color:${C.grön}">@handlis.app</span></div>`);
 
 const cta = () => page(C.skog, `
   ${veg('broccoli', C.lime, 'width:90px;left:30px;top:50px;transform:rotate(-8deg)')}
@@ -73,6 +73,9 @@ const cta = () => page(C.skog, `
     <div style="font-weight:600;font-size:13px;color:${C.lime};margin-top:14px">Länk i bion · handlis.app</div>
   </div>`);
 
-const b = await browser();
-await renderCarousel(b, '1-veckans-recept', [cover(), weekMenu(), howTo(), ...RECIPES.map(recipe), cta()]);
-await b.close();
+// Bara när filen körs direkt: fredag.mjs importerar recipe().
+if (process.argv[1]?.endsWith('veckomeny.mjs')) {
+  const b = await browser();
+  await renderCarousel(b, '1-veckans-recept', [cover(), weekMenu(), howTo(), ...RECIPES.map((r, i) => recipe(r, i)), cta()]);
+  await b.close();
+}
