@@ -40,6 +40,21 @@ function decodeEntities(s: string): string {
     .replace(/&amp;/g, '&');
 }
 
+/** Vårt eget konto: bara dess bilder följer med vid import. */
+const OWN_INSTAGRAM_ACCOUNT = 'handlis.app';
+
+/**
+ * Bilden till ett Instagram-recept, bara för våra egna inlägg (andras bilder får
+ * vi inte kopiera) och bara med ett enda recept: i en veckomeny hör omslaget inte
+ * till något av dem. Länken är signerad och går ut, så den flyttas till vår
+ * bildlagring när receptet sparas.
+ */
+export function ownPostImage(html: string, account: string | undefined, recipeCount: number): string | null {
+  if (account?.toLowerCase() !== OWN_INSTAGRAM_ACCOUNT || recipeCount !== 1) return null;
+  const m = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i);
+  return m ? decodeEntities(m[1]) : null;
+}
+
 /**
  * Texten i sidans beskrivande metataggar (og:title, og:description,
  * description, twitter:description), utan dubbletter. HTML-till-text-städningen
