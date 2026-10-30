@@ -55,6 +55,8 @@ import { ShoppingListPicker } from '../../src/components/ShoppingListPicker';
 import { isPantryBasic, PANTRY_BASICS_KEY } from '../../src/lib/pantryBasics';
 import { inventoryCategory } from '../../src/lib/inventoryCategory';
 import { mergeConvertibleUnits } from '../../src/lib/inventoryUnits';
+import { estimateKey, smartMergeRequests, smartMergeRows, SMART_MERGE_KEY, type EstimatedPart } from '../../src/lib/inventorySmartMerge';
+import { useExperiment } from '../../src/lib/experiments';
 import * as SecureStore from '../../src/lib/secureStorage';
 import { ReceptBild } from '../../src/components/ReceptBild';
 import { cloudinaryOptimized, CARD_IMAGE_WIDTH } from '../../src/lib/cloudinaryUrl';
@@ -118,6 +120,8 @@ interface AggIngredient {
   sources: { menuItemId: string; recipeId: string; qty: number | null }[];
   /** Varje rad som bidrar är "ev." — ett tillval, som börjar som "har hemma". */
   optional: boolean;
+  /** Satt när raden är en uppskattad ihopslagning (Smartare ihopslagning). */
+  estimatedFrom?: EstimatedPart[];
 }
 
 // Sliderns steg per enhet: kg är finkorning (0,1), övriga delbara mått (l, dl,
@@ -550,7 +554,20 @@ export default function MenuScreen() {
       .finally(() => names.forEach(n => resolvingRef.current.delete(n)));
   }, [showBulkTransferModal, householdId, client, bulkPool, resolvedNames]);
 
-  const aggregatedInventory = useMemo<AggIngredient[]>(() => {
+  // Smartare ihopslagning (dev-läget + reglaget i Inställningar): läses om varje
+  // gång inventeringen öppnas, eftersom reglaget ligger på en annan skärm.
+  const devMode = useExperiment('dev-mode');
+  const [smartMergeOn, setSmartMergeOn] = useState(false);
+  useEffect(() => {
+    if (!showBulkTransferModal) return;
+    SecureStore.getItemAsync(SMART_MERGE_KEY).then(v => setSmartMergeOn(v === '1')).catch(() => {});
+  }, [showBulkTransferModal]);
+  const smartMerge = devMode && smartMergeOn;
+  const [estimates, setEstimates] = useState<Record<string, number | null>>({});
+  const [smartSplit, setSmartSplit] = useState<Set<string>>(new Set());
+  const estimatingRef = useRef<Set<string>>(new Set());
+
+  const baseInventory = useMemo<AggIngredient[]>(() => {
     const selected = bulkPool.filter(m => selectedRecipesForTransfer.has(m.id) && !transferredMenuItemIds.has(m.id));
     const map = new Map<string, AggIngredient>();
     for (const item of selected) {
@@ -580,15 +597,37 @@ export default function MenuScreen() {
     }
     // Group by store category (kyl/frys/skafferi…) so you don't run back and forth
     // while inventorying — alphabetical within each category. No headers shown.
+    // "2 msk grädde" + "3 dl grädde" blir en rad — samma regel som listan.
+    return mergeConvertibleUnits([...map.values()]
+      .map(a => (a.measured && (a.totalQty ?? 0) > 0 ? a : { ...a, measured: false, totalQty: null })));
+  }, [selectedRecipesForTransfer, bulkPool, menuItemServings, transferredMenuItemIds, resolvedNames]);
+
+  // Hämtar uppskattningarna som saknas. Best-effort: utan svar står raderna kvar.
+  useEffect(() => {
+    if (!smartMerge || !showBulkTransferModal) return;
+    const saknas = smartMergeRequests(baseInventory, isPantryBasic)
+      .filter(r => !(estimateKey(r) in estimates) && !estimatingRef.current.has(estimateKey(r)))
+      .slice(0, 40);
+    if (saknas.length === 0) return;
+    saknas.forEach(r => estimatingRef.current.add(estimateKey(r)));
+    client.estimateInventory(saknas)
+      .then(({ estimates: svar }) => setEstimates(prev => {
+        const next = { ...prev };
+        saknas.forEach((r, i) => { next[estimateKey(r)] = svar[i] ?? null; });
+        return next;
+      }))
+      .catch(() => {})
+      .finally(() => saknas.forEach(r => estimatingRef.current.delete(estimateKey(r))));
+  }, [smartMerge, showBulkTransferModal, baseInventory, estimates, client]);
+
+  const aggregatedInventory = useMemo<AggIngredient[]>(() => {
     const catIdx = (c?: string) => {
       const i = DEFAULT_CATEGORY_ORDER.indexOf(c as never);
       return i < 0 ? DEFAULT_CATEGORY_ORDER.length : i;
     };
-    // "2 msk grädde" + "3 dl grädde" blir en rad — samma regel som listan.
-    return mergeConvertibleUnits([...map.values()]
-      .map(a => (a.measured && (a.totalQty ?? 0) > 0 ? a : { ...a, measured: false, totalQty: null })))
-      .sort((a, b) => (catIdx(a.category) - catIdx(b.category)) || a.name.localeCompare(b.name, 'sv'));
-  }, [selectedRecipesForTransfer, bulkPool, menuItemServings, transferredMenuItemIds, resolvedNames]);
+    const rows = smartMerge ? smartMergeRows(baseInventory, estimates, smartSplit) : baseInventory;
+    return [...rows].sort((a, b) => (catIdx(a.category) - catIdx(b.category)) || a.name.localeCompare(b.name, 'sv'));
+  }, [baseInventory, smartMerge, estimates, smartSplit]);
 
   // Inventory: en flat lista där varje rad har en dra-bar + ✓-knapp. Cap höjden
   // så Överför-/Tillbaka-knapparna inte klipps på korta skärmar.
@@ -623,13 +662,29 @@ export default function MenuScreen() {
         </View>
       );
     }
-    return (
+    const rad = (
       <InvMeasuredRow
         key={agg.key}
         agg={agg.optional ? { ...agg, name: str.inventory.optionalName(agg.name) } : agg}
         haveAmt={haveAtHome[agg.key] ?? 0}
         onCommit={v => setHaveAtHome(prev => ({ ...prev, [agg.key]: v }))}
       />
+    );
+    if (!agg.estimatedFrom) return rad;
+    // En gissning ska aldrig se ut som ett faktum: visa vad raden består av.
+    const delar = agg.estimatedFrom
+      .map(p => (p.qty == null ? str.inventory.estimatedNoAmount : `${formateraKöksmått(p.qty, p.unit)} ${p.unit ?? ''}`.trim()))
+      .join(' + ');
+    return (
+      <View key={agg.key}>
+        {rad}
+        <View style={s.invEstimated}>
+          <Text style={s.invEstimatedText} numberOfLines={2}>{str.inventory.estimated(delar)}</Text>
+          <Pressable onPress={() => setSmartSplit(prev => new Set(prev).add(agg.name.toLowerCase().trim()))} hitSlop={8} accessibilityRole="button">
+            <Text style={s.invEstimatedSplit}>{str.inventory.estimatedSplit}</Text>
+          </Pressable>
+        </View>
+      </View>
     );
   }
 
@@ -3058,6 +3113,9 @@ const makeStyles = (c: Palette, ny: NyPalett) => StyleSheet.create({
   // ny.kort finns i båda paletterna: i mörkt läge ett tydligt steg ljusare än
   // bakgrunden, men mörkare än den planerade dagens platsLjus — samma trappa.
   nyDagTomRuta: { backgroundColor: ny.kort },
+  invEstimated: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingBottom: 8, marginTop: -2 },
+  invEstimatedText: { flex: 1, fontSize: 12, color: ny.textDampad },
+  invEstimatedSplit: { fontSize: 12, fontWeight: '700', color: ny.padYta },
   tomVeckaMonster: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, overflow: 'hidden', paddingTop: 24, gap: 64, opacity: 0.07, zIndex: 0 },
   tomVeckaRad: { flexDirection: 'row', justifyContent: 'space-around', paddingHorizontal: 24 },
   tomVeckaRadForskjuten: { paddingHorizontal: 0, justifyContent: 'space-evenly', transform: [{ translateX: 40 }] },

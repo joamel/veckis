@@ -4,6 +4,8 @@ import { WeekDay, Prisma } from '@prisma/client';
 import { prisma } from '../db';
 import { requireAuth, requireHouseholdMember, AuthenticatedRequest } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
+import { aiDailyUserLimiter } from '../lib/rateLimits';
+import { estimateInventory } from '../lib/inventoryEstimate';
 import { normalizeIngredientNames, getStoredCategory } from '../lib/normalizeIngredients';
 import { categorizeWithStored, curatedSubCategory } from '../lib/categorizeIngredient';
 import { withDriedPrefix } from '../lib/driedHerb';
@@ -289,6 +291,27 @@ menusRouter.post('/templates', requireAuth, requireHouseholdMember, asyncHandler
     include: { items: { include: { recipe: { select: { id: true, title: true } } } } },
   });
   res.status(201).json(template);
+}));
+
+// POST /api/menus/estimate-inventory — uppskattningar till "Smartare ihopslagning"
+// i inventeringen. Gram eller ml per enhet, eller totalt när mängd saknas.
+menusRouter.post('/estimate-inventory', requireAuth, aiDailyUserLimiter, asyncHandler(async (req, res) => {
+  const body = z.object({
+    items: z.array(z.object({
+      name: z.string().min(1).max(100),
+      unit: z.string().max(20).nullable(),
+      family: z.enum(['mass', 'volume']),
+      recipeTitle: z.string().max(200).nullable().optional(),
+    })).min(1).max(40),
+  }).safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: body.error.flatten() }); return; }
+  // Best-effort: utan svar står raderna kvar var för sig, som vanligt.
+  try {
+    res.json({ estimates: await estimateInventory(body.data.items) });
+  } catch (err) {
+    console.error('[inventering] uppskattning misslyckades:', err instanceof Error ? err.message : err);
+    res.json({ estimates: body.data.items.map(() => null) });
+  }
 }));
 
 // POST /api/menus/templates/from-recipes — en mall direkt av importerade recept

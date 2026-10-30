@@ -540,6 +540,10 @@ export const menu = {
     buy:               (amount: string, unit: string) => `köp ${amount}${unit}`,
     amountPlaceholder: 'Har',
     basicsAtHome:      'Salt, peppar, olja och vatten finns hemma',
+    // "Smartare ihopslagning": raden är en uppskattning och går att dela upp.
+    estimated:         (delar: string) => `≈ Uppskattat av ${delar}`,
+    estimatedNoAmount: 'utan mängd',
+    estimatedSplit:    'Dela upp',
     basicsHidden:      (n: number) => `${n} ${n === 1 ? 'rad' : 'rader'} dolda`,
     optionalName:      (name: string) => `${name} (ev.)`,
   },
@@ -1750,6 +1754,8 @@ export const preferences = {
   rows: {
     notifications:  'Aviseringar',
     sound:          'Ljud vid avcheckning',
+    smartMerge:     'Smartare ihopslagning',
+    smartMergeHint: 'Uppskattar mängder i inventeringen för att slå ihop fler rader med samma vara. Blir ibland ungefärligt.',
     haptics:        'Vibration vid avcheckning',
     onboardingTips: 'Visa introduktionen igen',
     proximity:      'Släck skärmen i fickan',
@@ -2040,7 +2046,7 @@ export const admin = {
   sandbox: {
     'dev-mode': {
       title:       'Dev-läge',
-      description: 'Slår på det som är under utveckling, bara på den här telefonen. Just nu: förslag på kategoriordning ur så lite som en handling i butiken.',
+      description: 'Slår på det som är under utveckling, bara på den här telefonen. Just nu: förslag på kategoriordning ur så lite som en handling i butiken, och reglaget Smartare ihopslagning i Inställningar.',
     },
   },
   tabs: {

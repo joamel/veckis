@@ -1,5 +1,5 @@
 /** Det som alltid finns hemma, och som reglaget överst i inventeringen gäller. */
-const BASICS = new Set(['salt', 'flingsalt', 'havssalt', 'bordssalt', 'peppar', 'svartpeppar', 'vitpeppar', 'vatten', 'olja', 'matolja', 'rapsolja', 'olivolja']);
+const BASICS = new Set(['salt', 'flingsalt', 'havssalt', 'bordssalt', 'peppar', 'svartpeppar', 'vitpeppar', 'vatten', 'olja', 'matolja', 'rapsolja']);
 
 /** Ord som får stå runt basvarorna utan att raden blir något annat. */
 const FILLER = new Set([

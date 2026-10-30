@@ -25,6 +25,8 @@ import { LANDING_TABS, DEFAULT_LANDING_TAB, getLandingTab, setLandingTab, type L
 import { preferences as str, instagramPromo } from '../src/lib/svenska';
 import { INSTAGRAM_URL } from '../src/lib/storeLinks';
 import { INSTAGRAM_TIP_FLAGS } from '../src/lib/instagramTip';
+import { useExperiment } from '../src/lib/experiments';
+import { SMART_MERGE_KEY } from '../src/lib/inventorySmartMerge';
 import { useApiClient } from '../src/api/client';
 import { useDesign } from '../src/context/DesignContext';
 import { useBottomGap } from '../src/hooks/useBottomGap';
@@ -52,6 +54,9 @@ export default function PreferencesScreen() {
   const lyftrad = formateraLyftspår(senasteLyftspår());
   const [hapticEnabled, setHapticEnabled] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  // Smartare ihopslagning: bara i dev-läget tills den släpps. Av som standard.
+  const devMode = useExperiment('dev-mode');
+  const [smartMerge, setSmartMerge] = useState(false);
   const [landingTab, setLandingTabState] = useState<LandingTabKey>(DEFAULT_LANDING_TAB);
   // null = raden döljs: webben, byggen utan modulen och enheter utan sensor.
   const [proximityEnabled, setProximityEnabled] = useState<boolean | null>(null);
@@ -67,6 +72,7 @@ export default function PreferencesScreen() {
     SecureStore.getItemAsync(HAPTIC_CHECKOUT_KEY).then(v => {
       setHapticEnabled(v !== '0');
     }).catch(() => {});
+    SecureStore.getItemAsync(SMART_MERGE_KEY).then(v => setSmartMerge(v === '1')).catch(() => {});
     SecureStore.getItemAsync(SOUND_CHECKOUT_KEY).then(v => {
       setSoundEnabled(v !== '0');
     }).catch(() => {});
@@ -155,6 +161,28 @@ export default function PreferencesScreen() {
               })}
             </View>
           </View>
+          {devMode && (
+            <Pressable style={[s.row, s.rowBorder]} onPress={async () => {
+              const next = !smartMerge;
+              setSmartMerge(next);
+              await SecureStore.setItemAsync(SMART_MERGE_KEY, next ? '1' : '0').catch(() => {});
+            }}>
+              {nyDesign ? (
+                <View style={[s.nyRund, s.nyRundLjus]}><Ionicons name="git-merge-outline" size={18} color={ny.padYta} /></View>
+              ) : (
+                <Ionicons name="git-merge-outline" size={18} color={c.accent} />
+              )}
+              <View style={{ flex: 1 }}>
+                <Text style={s.rowText}>{str.rows.smartMerge}</Text>
+                <Text style={{ fontSize: 12, lineHeight: 16, color: nyDesign ? ny.textDampad : c.textFaint, marginTop: 2 }}>{str.rows.smartMergeHint}</Text>
+              </View>
+              <Ionicons
+                name={smartMerge ? 'toggle' : 'toggle-outline'}
+                size={22}
+                color={nyDesign ? (smartMerge ? ny.padYta : ny.kontur) : (smartMerge ? c.accent : c.textFaint)}
+              />
+            </Pressable>
+          )}
           <Pressable style={[s.row, s.rowBorder]} onPress={async () => {
             const next = !soundEnabled;
             setSoundEnabled(next);

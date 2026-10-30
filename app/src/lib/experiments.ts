@@ -18,7 +18,8 @@ export const EXPERIMENTS = [
   // förslaget på kategoriordning ur en enda handling (backend godtar det bara
   // från appadmin), så kortet går att prova utan fyra handlingar. Laga-lägets
   // klocka och timrar, "Ändra mängd" och "Dela mall" släpptes 2026-10-26.
-  // Instagram-kontot i appen släpptes 2026-10-29.
+  // Instagram-kontot i appen släpptes 2026-10-29. Smartare ihopslagning i
+  // inventeringen (2026-10-30): reglaget i Inställningar syns bara här.
   'dev-mode',
 ] as const;
 

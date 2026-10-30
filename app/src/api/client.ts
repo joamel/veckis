@@ -732,6 +732,10 @@ export function useApiClient() {
     deleteStaple: (stapleId: string) =>
       request<void>(`/api/staples/${stapleId}`, { method: 'DELETE' }),
 
+    // Uppskattningar till "Smartare ihopslagning": gram/ml per enhet, eller totalt.
+    estimateInventory: (items: { name: string; unit: string | null; family: 'mass' | 'volume'; recipeTitle: string | null }[]) =>
+      request<{ estimates: (number | null)[] }>('/api/menus/estimate-inventory', { method: 'POST', body: JSON.stringify({ items }) }),
+
     // Kanoniskt namn + kategori för inventeringens rader (hushållets val först).
     resolveInventoryNames: (householdId: string, names: string[]) =>
       request<{ name: string; canonical: string; category: string }[]>('/api/staples/resolve', { method: 'POST', body: JSON.stringify({ householdId, names }) }),
