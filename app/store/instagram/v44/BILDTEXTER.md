@@ -93,10 +93,10 @@ Filer: `5-reel-dela-till-handlis.mp4` (melodi), `-tyst.mp4` (välj populärt lju
 ---
 
 ## Lör 31/10 – Sugen på nachos?
-Mapp: `6-sugen-pa-nachos/` (3 bilder: omslag med foto, receptet, avslutning). Omslaget byggs med `source/fredag.mjs`.
+Mapp: `6-nachos/` (3 bilder: omslag med foto, receptet, avslutning). Omslaget byggs med `source/fredag.mjs`.
 
 > Vad blir det till helgmyset? 🧀
-> Ugnsnachos direkt ur formen – klart på 25 minuter. Tryck Dela och välj Handlis, så ligger receptet i appen 💚
+> Nachos direkt ur ugnsformen – klart på 25 minuter. Tryck Dela och välj Handlis, så ligger receptet i appen 💚
 >
 > 400 g nötfärs, 1 påse tacokrydda, 1 dl vatten, 200 g tortillachips, 1 burk tacosås, 150 g riven ost, 2 tomater, 1 avokado, 2 dl gräddfil.
 >

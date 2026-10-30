@@ -16,10 +16,10 @@ const html = page(C.skog, `
   <div style="position:absolute;left:0;right:0;top:40px;text-align:center">
     <div class="kick" style="color:${C.lime}">Ugnsnachos · 25 min</div>
     <div class="hand" style="color:#fff;font-size:78px;margin-top:6px">Sugen på nachos?</div>
-    <div class="sub" style="color:#fff;margin-top:4px">Tryck Dela → välj Handlis, så ligger receptet i appen</div>
+    <div class="sub" style="color:#fff;margin-top:4px">Nachos direkt ur ugnsformen<br>Tryck Dela → välj Handlis</div>
   </div>
   ${stamp('right:30px;bottom:34px', C.lime, C.skog)}`);
 
 const b = await browser();
-await renderCarousel(b, '6-sugen-pa-nachos', [html, recipe({ ...RECIPES[4], day: null }, 4, '📲 Tryck Dela → välj Handlis')]);
+await renderCarousel(b, '6-nachos', [html, recipe({ ...RECIPES[4], day: null }, 4, '📲 Tryck Dela → välj Handlis')]);
 await b.close();
