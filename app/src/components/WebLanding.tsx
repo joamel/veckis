@@ -128,24 +128,6 @@ export function WebLanding() {
         </View>
       </View>
 
-      {/* Krittavla — appens kärn-loop (ovanför funktioner). Mobil = swipe-karusell. */}
-      <View style={s.board}>
-        <View style={s.boardInner}>
-          <Text style={s.boardHeading}>{str.flow.heading}</Text>
-          <View style={s.boardUnderline} />
-          {narrow ? (
-            <BoardPager s={s} />
-          ) : (
-            <Image
-              source={BOARD}
-              style={s.boardImg}
-              resizeMode="contain"
-              accessibilityLabel={str.flow.alt}
-            />
-          )}
-          <Text style={s.boardCaption}>{str.flow.caption}</Text>
-        </View>
-      </View>
 
       {/* Funktioner */}
       <View style={s.section}>
@@ -195,6 +177,28 @@ export function WebLanding() {
           </View>
         </View>
       )}
+
+      {/* Om Handlis — hur idén tog form. Konceptskissen (krittavlan) visar
+          kärnloopen; mobil = swipe-karusell. */}
+      <View style={s.board}>
+        <View style={s.boardInner}>
+          <Text style={s.boardHeading}>{str.about.heading}</Text>
+          <View style={s.boardUnderline} />
+          {narrow ? (
+            <BoardPager s={s} />
+          ) : (
+            <Image
+              source={BOARD}
+              style={s.boardImg}
+              resizeMode="contain"
+              accessibilityLabel={str.flow.alt}
+            />
+          )}
+          <View style={s.aboutText}>
+            {str.about.paragraphs.map((p, i) => <Text key={i} style={s.aboutP}>{p}</Text>)}
+          </View>
+        </View>
+      </View>
 
       {/* Vanliga frågor — synlig text för sökmotorerna, samma som i index.html */}
       <View style={[s.section, s.faqSection]}>
@@ -359,7 +363,8 @@ const makeStyles = (narrow: boolean) => StyleSheet.create({
   boardHeading: { fontSize: narrow ? 24 : 32, fontFamily: nyFont.fet, fontWeight: 'normal', color: BRAND.greenDark, textAlign: 'center', letterSpacing: -0.2 },
   boardUnderline: { width: 90, height: 3, borderRadius: 2, backgroundColor: BRAND.terra, marginTop: 14, marginBottom: narrow ? 26 : 36 },
   boardImg: { width: '100%', maxWidth: 960, aspectRatio: BOARD_RATIO, borderRadius: 14, alignSelf: 'center' },
-  boardCaption: { fontSize: narrow ? 15 : 16, lineHeight: 24, color: BRAND.inkMuted, textAlign: 'center', marginTop: narrow ? 22 : 30, maxWidth: 560 },
+  aboutText: { maxWidth: 640, marginTop: narrow ? 26 : 36, gap: 14 },
+  aboutP: { fontSize: narrow ? 15 : 17, lineHeight: narrow ? 24 : 28, color: BRAND.ink },
   pagerOuter: { width: '100%', maxWidth: 380, alignSelf: 'center' },
   pagerWrap: { width: '100%', borderRadius: 14, overflow: 'hidden', position: 'relative' },
   pagerNav: { position: 'absolute', top: '50%', marginTop: -21, width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(0,0,0,0.5)', borderWidth: 1.5, borderColor: 'rgba(205,230,107,0.6)', alignItems: 'center', justifyContent: 'center' },

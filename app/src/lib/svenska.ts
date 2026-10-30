@@ -1922,7 +1922,7 @@ export const storeButtons = {
 export const landing = {
   // "Så ser Handlis ut": riktiga skärmbilder och Dela-reelen.
   showcase: {
-    heading: 'Så ser Handlis ut',
+    heading: 'Så funkar Handlis',
     body:    'Receptsamlingen, veckomenyn och inköpslistan i butikens ordning – i samma app. Hittar du en veckomeny på Instagram? Tryck Dela, välj Handlis, och hela veckan är planerad.',
     imageAlt: 'Handlis på tre telefoner: receptsamlingen, veckomenyn och inköpslistan',
     videoAlt: 'Film: ett Instagram-inlägg delas till Handlis och blir en planerad veckomeny',
@@ -1962,9 +1962,18 @@ export const landing = {
   },
   // "Svarta tavlan"-flöde: appens kärn-loop som krittavle-illustration
   // (koncept-board.webp) — veckomeny → inventera skafferiet → inköpslista.
+  // "Om Handlis": hur idén tog form, med konceptskissen (krittavlan).
+  about: {
+    heading:     'Om Handlis',
+    paragraphs: [
+      'Idén till Handlis har funnits länge. Storhandling och veckoplanering har alltid känts som ett nödvändigt ont – och alltför ofta blev det att springa fram och tillbaka i affären.',
+      'Genom åren har det blivit många halvhjärtade försök till en app eller hemsida, men tidsbrist, jobb och livet kom alltid emellan. Nu fanns äntligen förutsättningarna att ta projektet i mål, och det senaste halvåret har gått åt många sena kvällar och helger.',
+      'Handlis har formats under resans gång, tillsammans med fantastiska bollplank och testare. Den 6 oktober var en milstolpe: appen kom ut på Google Play, och strax efter i App Store.',
+      'Nu fortsätter resan mot en så välputsad app som möjligt – en självklarhet i så många hushåll som möjligt.',
+    ],
+  },
+  // Konceptskissens alt-text (används i "Om Handlis").
   flow: {
-    heading:     'Så funkar Handlis',
-    caption:     'Välj maträtter, se vad som redan finns hemma, och handla bara det som saknas.',
     alt:         'Krittavla i tre steg. 1. Veckomeny: måndag carbonara, tisdag lasagne, onsdag tacos. 2. Inventera skafferiet: pasta, krossade tomater och parmesan finns; nötfärs och tacoskal saknas. 3. Inköpslista med det som saknas: nötfärs, tacoskal, sallad, tomat, grädde, lök, vitlök och riven ost.',
   },
   // Synliga svar på det folk faktiskt söker på. Skrivs också in som statisk

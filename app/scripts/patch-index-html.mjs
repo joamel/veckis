@@ -257,8 +257,8 @@ function staticLanding(l) {
         <p><a href="${esc(APP_STORE)}" style="color:#cde66b">App Store</a> · <a href="${esc(PLAY_STORE)}" style="color:#cde66b">Google Play</a></p>
       </header>
       <section>
-        <h2>${esc(l.flow.heading)}</h2>
-        <p>${esc(l.flow.caption)}</p>
+        <h2>${esc(l.showcase.heading)}</h2>
+        <p>${esc(l.showcase.body)}</p>
       </section>
       <section>
         <h2>${esc(l.features.heading)}</h2>
@@ -267,6 +267,10 @@ function staticLanding(l) {
       <section>
         <h2>${esc(l.instagram.heading)}</h2>
         <p>${esc(l.instagram.body)} <a href="${esc(INSTAGRAM)}">${esc(l.instagram.button)}</a></p>
+      </section>
+      <section>
+        <h2>${esc(l.about.heading)}</h2>
+        ${l.about.paragraphs.map(p => `<p>${esc(p)}</p>`).join('\n        ')}
       </section>
       <section>
         <h2>${esc(l.faq.heading)}</h2>

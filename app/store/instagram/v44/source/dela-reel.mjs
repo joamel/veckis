@@ -49,7 +49,7 @@ function clipTime(r) {
 
 const HTML = page(WEB ? C.lime : C.skog, `
   <style>
-    #phone { position:absolute; left:${(540 - SW) / 2 - 9}px; top:${WEB ? 112 : 128}px; width:${SW}px; height:${SH}px; padding:9px; border-radius:46px; background:#0d1f16; box-shadow:0 24px 60px rgba(0,0,0,.45); }
+    #phone { position:absolute; left:${(540 - SW) / 2 - 9}px; top:${WEB ? 112 : 128}px; width:${SW + 18}px; height:${SH + 18}px; padding:9px; border-radius:46px; background:#0d1f16; box-shadow:0 24px 60px rgba(0,0,0,.45); }
     #phone .scr { position:relative; width:${SW}px; height:${SH}px; border-radius:38px; overflow:hidden; background:#000; }
     #scr { width:100%; height:100%; display:block; }
     .dot { position:absolute; width:34px; height:34px; margin:-17px 0 0 -17px; border-radius:17px; background:rgba(255,255,255,.85); box-shadow:0 0 0 3px rgba(29,59,46,.55); opacity:0; }
