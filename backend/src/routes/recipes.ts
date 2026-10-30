@@ -22,7 +22,7 @@ import * as Sentry from '@sentry/node';
 import { uploadRecipeImage, deleteRecipeImage, type UploadResult } from '../lib/imageUpload';
 import { recipeAbuseLimiter, parseTextLimiter, aiDailyUserLimiter } from '../lib/rateLimits';
 import { safeFetch } from '../lib/ssrfGuard';
-import { extractMetaText, isInstagramUrl, LINK_PREVIEW_USER_AGENT } from '../lib/pageMeta';
+import { extractMetaText, isInstagramUrl, isTikTokUrl, LINK_PREVIEW_USER_AGENT } from '../lib/pageMeta';
 import { tolkaJsonSvar, saknarReceptinnehåll, InteJsonError, textUr } from '../lib/aiJson';
 import { bokförAiKostnad } from '../lib/aiCost';
 import { taFotokvot, MAX_FOTON_PER_MANAD } from '../lib/photoQuota';
@@ -944,8 +944,38 @@ function parseInstructions(raw: any): string | null {
 }
 
 const INSTAGRAM_FEL = 'Instagram visar inte inlägget för oss – kopiera bildtexten och klistra in den i stället.';
+const TIKTOK_FEL = 'TikTok visar inte receptet för oss. Kopiera videons beskrivning och klistra in den här – eller ta en skärmbild på receptet och välj Fota eller välj bild.';
+
+/**
+ * TikTok-video via den officiella oEmbed-tjänsten: title är videons beskrivning.
+ * Sidan i sig är JavaScript utan recept, och oEmbed ger ingen text för alla
+ * videor — och står receptet bara i själva filmen finns inget att läsa. Då
+ * får man ett besked om vad man kan göra i stället, inte "hittade inget recept".
+ */
+async function scrapeTikTok(url: string): Promise<{ recipes: ScrapedRecipe[]; viaAi: boolean }> {
+  let caption = '';
+  let konto: string | null = null;
+  try {
+    const res = await safeFetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`, { signal: AbortSignal.timeout(10000) });
+    if (res.ok) {
+      const data = await res.json() as { title?: unknown; author_unique_id?: unknown };
+      if (typeof data.title === 'string') caption = data.title.trim();
+      if (typeof data.author_unique_id === 'string' && data.author_unique_id) konto = `@${data.author_unique_id}`;
+    }
+  } catch { /* samma besked som när texten saknas */ }
+  if (caption.length < 40) throw new Error(TIKTOK_FEL);
+  try {
+    const recept = await parseRecipeTextWithAI(caption);
+    return { viaAi: true, recipes: recept.map(r => ({ ...r, imageUrl: null, sourceName: konto })) };
+  } catch (err) {
+    if (err instanceof InteJsonError) throw new Error(TIKTOK_FEL);
+    throw err;
+  }
+}
 
 async function scrapeRecipe(url: string): Promise<{ recipes: ScrapedRecipe[]; viaAi: boolean }> {
+  if (isTikTokUrl(url)) return scrapeTikTok(url);
+
   // Delade Instagram-inlägg kommer som en länk utan bildtext. Instagram visar
   // inloggningsväggen för vanliga hämtningar, men lägger bildtexten i
   // metataggarna för länkförhandsvisningar — så hämta som en sådan och tolka

@@ -11,6 +11,16 @@ export function isInstagramUrl(url: string): boolean {
   }
 }
 
+/** TikTok, inklusive kortlänkarna som delningen ger (vm./vt.tiktok.com). */
+export function isTikTokUrl(url: string): boolean {
+  try {
+    const host = new URL(url).hostname.replace(/^www./, '').toLowerCase();
+    return host === 'tiktok.com' || host.endsWith('.tiktok.com');
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Instagram visar inloggningsväggen för vanliga hämtningar men lägger
  * bildtexten i metataggarna när sidan hämtas för en länkförhandsvisning.

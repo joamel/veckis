@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractMetaText, isInstagramUrl } from './pageMeta';
+import { extractMetaText, isInstagramUrl, isTikTokUrl } from './pageMeta';
 
 describe('isInstagramUrl', () => {
   it('känner igen inlägg, reels och kortlänkar', () => {
@@ -11,6 +11,17 @@ describe('isInstagramUrl', () => {
     expect(isInstagramUrl('https://www.ica.se/recept/pannkakor-1234/')).toBe(false);
     expect(isInstagramUrl('https://notinstagram.com/p/x')).toBe(false);
     expect(isInstagramUrl('inte en länk')).toBe(false);
+  });
+});
+
+describe('isTikTokUrl', () => {
+  it('känner igen videor och delningens kortlänkar', () => {
+    expect(isTikTokUrl('https://www.tiktok.com/@simonkafi/video/7699110531008974102?_r=1')).toBe(true);
+    expect(isTikTokUrl('https://vm.tiktok.com/ZNabc123/')).toBe(true);
+  });
+  it('släpper igenom andra sajter och skräp', () => {
+    expect(isTikTokUrl('https://nottiktok.com/@a/video/1')).toBe(false);
+    expect(isTikTokUrl('inte en länk')).toBe(false);
   });
 });
 
