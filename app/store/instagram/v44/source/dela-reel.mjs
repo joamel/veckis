@@ -12,7 +12,10 @@ import { C, ICON, OUT, FFMPEG, veg, stamp, brand, page, browser } from './stil.m
 
 const CLIP = join(OUT, '5-dela-till-handlis-ra.mp4');
 const FPS = 30;
-const SW = 330;                     // skärmens bredd i mallen (CSS-px, ×2 i filen)
+// WEB=1: versionen till landningssidan — ingen krok eller slutbild, lime
+// bakgrund som sektionen, mörkgröna texter och en större telefon.
+const WEB = process.env.WEB === '1';
+const SW = WEB ? 384 : 330;                     // skärmens bredd i mallen (CSS-px, ×2 i filen)
 const SH = Math.round(SW * 2224 / 1080);
 const S = SW / 1080;                // klippets px → skärmens CSS-px
 
@@ -32,7 +35,7 @@ const STEPS = [
 ];
 // Reelens tid → klippets tid: tittandet i början 1,5× och bläddrandet i menyn 2×.
 const SEGS = [[0, 3.6, 1.5], [3.6, 18.6, 1], [18.6, 26.6, 2], [26.6, 33.45, 1]];
-const HOOK = 2.6, END = 3.2;
+const HOOK = WEB ? 0 : 2.6, END = WEB ? 0 : 3.2;
 const segLen = SEGS.map(([a, b, v]) => (b - a) / v);
 const MID = segLen.reduce((x, y) => x + y, 0);
 const TOTAL = HOOK + MID + END;
@@ -44,15 +47,15 @@ function clipTime(r) {
   }
 }
 
-const HTML = page(C.skog, `
+const HTML = page(WEB ? C.lime : C.skog, `
   <style>
-    #phone { position:absolute; left:${(540 - SW) / 2 - 9}px; top:128px; width:${SW}px; height:${SH}px; padding:9px; border-radius:46px; background:#0d1f16; box-shadow:0 24px 60px rgba(0,0,0,.45); }
+    #phone { position:absolute; left:${(540 - SW) / 2 - 9}px; top:${WEB ? 112 : 128}px; width:${SW}px; height:${SH}px; padding:9px; border-radius:46px; background:#0d1f16; box-shadow:0 24px 60px rgba(0,0,0,.45); }
     #phone .scr { position:relative; width:${SW}px; height:${SH}px; border-radius:38px; overflow:hidden; background:#000; }
     #scr { width:100%; height:100%; display:block; }
     .dot { position:absolute; width:34px; height:34px; margin:-17px 0 0 -17px; border-radius:17px; background:rgba(255,255,255,.85); box-shadow:0 0 0 3px rgba(29,59,46,.55); opacity:0; }
     .ring { position:absolute; width:34px; height:34px; margin:-17px 0 0 -17px; border-radius:50%; border:4px solid ${C.lime}; opacity:0; }
-    #cap { position:absolute; left:16px; right:16px; top:44px; text-align:center; }
-    #cap .hand { color:${C.lime}; font-size:50px; white-space:nowrap; }
+    #cap { position:absolute; left:16px; right:16px; top:${WEB ? 34 : 44}px; text-align:center; }
+    #cap .hand { color:${WEB ? C.skog : C.lime}; font-size:50px; white-space:nowrap; }
     #num { display:inline-block; width:38px; height:38px; border-radius:19px; background:${C.lime}; color:${C.skog}; font-weight:700; font-size:20px; line-height:38px; margin-bottom:6px; }
     .full { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:0 40px; }
   </style>
@@ -128,11 +131,19 @@ for (let f = 0; f < N; f++) {
   const idx = Math.min(nSrc, Math.max(1, Math.round(ct * FPS) + 1));
   await p.evaluate((a, c, u) => window.setFrame(a, c, u), r, ct, pathToFileURL(join(src, String(idx).padStart(5, '0') + '.jpg')).href);
   await p.screenshot({ path: join(frames, String(f).padStart(5, '0') + '.png') });
-  if (f === Math.round((HOOK + 0.5) * FPS)) await p.screenshot({ path: join(OUT, '5-reel-dela-till-handlis-omslag.jpg'), type: 'jpeg', quality: 92 });
+  if (!WEB && f === Math.round((HOOK + 0.5) * FPS)) await p.screenshot({ path: join(OUT, '5-reel-dela-till-handlis-omslag.jpg'), type: 'jpeg', quality: 92 });
 }
 await b.close();
 
 const enc = ['-framerate', String(FPS), '-i', join(frames, '%05d.png')];
+if (WEB) {
+  // Liten och ljudlös för webben; affisch = första bildrutan.
+  const PUB = join(OUT, '../../../public');
+  execFileSync(ff, ['-y', '-loglevel', 'error', ...enc, '-vf', 'scale=540:960:out_color_matrix=bt709:out_range=tv', '-c:v', 'libx264', '-preset', 'slow', '-crf', '27', '-pix_fmt', 'yuv420p', '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-movflags', '+faststart', '-an', join(PUB, 'reel-dela-till-handlis.mp4')]);
+  execFileSync(ff, ['-y', '-loglevel', 'error', '-i', join(frames, '00000.png'), '-vf', 'scale=540:-2', '-q:v', '4', join(PUB, 'reel-dela-till-handlis.jpg')]);
+  console.log(`webb klar: ${TOTAL.toFixed(1)} s`);
+  process.exit(0);
+}
 const v = ['-c:v', 'libx264', '-preset', 'slow', '-crf', '15', '-profile:v', 'high', '-pix_fmt', 'yuv420p', '-maxrate', '12M', '-bufsize', '24M', '-movflags', '+faststart'];
 execFileSync(ff, ['-y', '-loglevel', 'error', ...enc, ...v, join(OUT, '5-reel-dela-till-handlis-tyst.mp4')]);
 if (process.env.MUSIC) {

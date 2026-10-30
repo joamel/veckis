@@ -23,8 +23,8 @@ const BOARD_RATIO = 1536 / 850;
 // 540×960 ~0,5 MB; ljudlös så att den får spelas upp automatiskt).
 const APP_VYER = require('../../assets/landing/app-vyer.webp');
 const APP_VYER_RATIO = 760 / 1014;
-const REEL_URL = '/reel-dela-till-handlis.mp4';
-const REEL_POSTER = '/reel-dela-till-handlis.jpg';
+const REEL_URL = '/reel-dela-till-handlis.mp4?v=2';
+const REEL_POSTER = '/reel-dela-till-handlis.jpg?v=2';
 // Tre inlägg ur Instagram-flödet (app/store/instagram/v44), nedskalade.
 // Byts när det finns nyare — de visar stilen, inte en viss vecka.
 const IG_INLAGG = [
@@ -329,8 +329,9 @@ const makeStyles = (narrow: boolean) => StyleSheet.create({
   showSection: { paddingHorizontal: 20, paddingVertical: narrow ? 44 : 72, backgroundColor: ny.lime },
   showBody: { fontSize: narrow ? 15 : 17, lineHeight: narrow ? 23 : 27, color: BRAND.greenDark, textAlign: 'center', maxWidth: 620, alignSelf: 'center', marginTop: narrow ? -16 : -28, marginBottom: narrow ? 24 : 40 },
   showRad: { flexDirection: narrow ? 'column' : 'row', alignItems: 'center', justifyContent: 'center', gap: narrow ? 28 : 48 },
-  // Reelen har en egen telefon i bild — bara rundade hörn här, ingen ram till.
-  showVideo: { width: narrow ? 240 : 300, height: narrow ? Math.round(240 * 16 / 9) : Math.round(300 * 16 / 9), borderRadius: 24, overflow: 'hidden', backgroundColor: ny.skog, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 20, shadowOffset: { width: 0, height: 10 } },
+  // Webbversionen av reelen: lime bakgrund som sektionen och telefonen i bild
+  // som enda ram — ingen ruta runt.
+  showVideo: { width: narrow ? 300 : 400, height: Math.round((narrow ? 300 : 400) * 16 / 9) },
 
   igSection: { paddingHorizontal: 20, paddingVertical: narrow ? 44 : 72, backgroundColor: BRAND.beige },
   igRubrik: { alignItems: 'center', maxWidth: 620, alignSelf: 'center' },
