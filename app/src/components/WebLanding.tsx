@@ -203,7 +203,7 @@ export function WebLanding() {
       {/* Vanliga frågor — synlig text för sökmotorerna, samma som i index.html */}
       <View style={[s.section, s.faqSection]}>
         <View style={s.faqInner}>
-          <Text style={s.sectionHeading} accessibilityRole="header">{str.faq.heading}</Text>
+          <Text style={[s.sectionHeading, s.faqHeading]} accessibilityRole="header">{str.faq.heading}</Text>
           {str.faq.items.map(item => (
             <View key={item.q} style={s.faqItem}>
               <Text style={s.faqQ} accessibilityRole="header">{item.q}</Text>
@@ -351,27 +351,31 @@ const makeStyles = (narrow: boolean) => StyleSheet.create({
   igBild: { width: '100%', height: '100%' },
   igKnapp: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, alignSelf: 'center', backgroundColor: BRAND.terra, paddingHorizontal: 28, paddingVertical: 15, borderRadius: 12, marginTop: narrow ? 24 : 36, minWidth: narrow ? '100%' : 240 },
 
-  faqSection: { paddingTop: 0 },
+  faqSection: {},
+  // Rubriken närmare frågorna än övriga sektionsrubriker.
+  faqHeading: { marginBottom: narrow ? 14 : 22 },
   faqInner: { width: '100%', maxWidth: 720, alignSelf: 'center' },
   faqItem: { paddingVertical: 18, borderTopWidth: 1, borderTopColor: BRAND.line },
   faqQ: { fontSize: 17, fontWeight: '800', color: BRAND.greenDark, marginBottom: 6 },
   faqA: { fontSize: 15, lineHeight: 23, color: BRAND.inkMuted },
 
   // Krittavla-sektion (ljusgrön bricka-bakgrund så den svarta tavlan blir ett kort)
-  board: { backgroundColor: BRAND.beige, paddingHorizontal: 20, paddingVertical: narrow ? 44 : 72 },
+  // Om Handlis: mörkgrön, så krittavlan smälter in och sektionen skiljer sig
+  // från Instagram-delen (beige) ovanför.
+  board: { backgroundColor: BRAND.greenDark, paddingHorizontal: 20, paddingVertical: narrow ? 44 : 72 },
   boardInner: { width: '100%', maxWidth: 1000, alignSelf: 'center', alignItems: 'center' },
-  boardHeading: { fontSize: narrow ? 24 : 32, fontFamily: nyFont.fet, fontWeight: 'normal', color: BRAND.greenDark, textAlign: 'center', letterSpacing: -0.2 },
+  boardHeading: { fontSize: narrow ? 24 : 32, fontFamily: nyFont.fet, fontWeight: 'normal', color: '#fff', textAlign: 'center', letterSpacing: -0.2 },
   boardUnderline: { width: 90, height: 3, borderRadius: 2, backgroundColor: BRAND.terra, marginTop: 14, marginBottom: narrow ? 26 : 36 },
   boardImg: { width: '100%', maxWidth: 960, aspectRatio: BOARD_RATIO, borderRadius: 14, alignSelf: 'center' },
   aboutText: { maxWidth: 640, marginTop: narrow ? 26 : 36, gap: 14 },
-  aboutP: { fontSize: narrow ? 15 : 17, lineHeight: narrow ? 24 : 28, color: BRAND.ink },
+  aboutP: { fontSize: narrow ? 15 : 17, lineHeight: narrow ? 24 : 28, color: BRAND.light },
   pagerOuter: { width: '100%', maxWidth: 380, alignSelf: 'center' },
   pagerWrap: { width: '100%', borderRadius: 14, overflow: 'hidden', position: 'relative' },
   pagerNav: { position: 'absolute', top: '50%', marginTop: -21, width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(0,0,0,0.5)', borderWidth: 1.5, borderColor: 'rgba(205,230,107,0.6)', alignItems: 'center', justifyContent: 'center' },
   pagerPrev: { left: 6 },
   pagerNext: { right: 6 },
   dots: { flexDirection: 'row', gap: 8, justifyContent: 'center', marginTop: 16 },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(0,0,0,0.18)' },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.28)' }, // ljusa: Om Handlis är mörkgrön
   dotActive: { width: 20, backgroundColor: BRAND.terra },
 
   ctaBand: { backgroundColor: BRAND.green, paddingHorizontal: 20, paddingVertical: narrow ? 44 : 64 },
